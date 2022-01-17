@@ -7,6 +7,7 @@ from Utils import generator
 from Utils import metrics
 from train import *
 from prune import *
+import sam.sam as sam
 
 def run(args):
     ## Random Seed and Device ##
@@ -28,7 +29,11 @@ def run(args):
                                                      args.pretrained).to(device)
     loss = nn.CrossEntropyLoss()
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
-    optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+    if args.sam:
+        opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
+        optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
+    else:
+        optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
 

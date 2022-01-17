@@ -7,6 +7,7 @@ from Utils import generator
 from Utils import metrics
 from train import *
 from prune import *
+import sam.sam as sam
 
 def run(args):
     if not args.save:
@@ -32,7 +33,11 @@ def run(args):
                                                      args.pretrained).to(device)
     loss = nn.CrossEntropyLoss()
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
-    optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+    if args.sam:
+        opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
+        optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
+    else:
+        optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
     ## Save Original ##
@@ -81,6 +86,22 @@ def run(args):
             # Train Model
             post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                           test_loader, device, args.post_epochs, args.verbose)
+            
+            ## Display Results ##
+            frames = [post_result.head(1), post_result.tail(1)]
+            train_result = pd.concat(frames, keys=['Post-Prune', 'Final'])
+            prune_result = metrics.summary(model, 
+                                   pruner.scores,
+                                   metrics.flop(model, input_shape, device),
+                                   lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual))
+            total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
+            possible_params = prune_result['size'].sum()
+            total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
+            possible_flops = prune_result['flops'].sum()
+            print("Train results:\n", train_result)
+            print("Prune results:\n", prune_result)
+            print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
+            print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
             
             # Save Data
             post_result.to_pickle("{}/post-train-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression),  str(level)))

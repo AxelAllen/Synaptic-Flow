@@ -1,4 +1,5 @@
 import torch
+import torch.multiprocessing as multiprocessing
 import numpy as np
 from torchvision import datasets, transforms
 import torch.optim as optim
@@ -9,6 +10,7 @@ from Models import tinyimagenet_vgg
 from Models import tinyimagenet_resnet
 from Models import imagenet_vgg
 from Models import imagenet_resnet
+from Models import vit
 from Pruners import pruners
 from Utils import custom_datasets
 
@@ -154,11 +156,21 @@ def model(model_architecture, model_class):
         'wide-resnet50' : imagenet_resnet.wide_resnet50_2,
         'wide-resnet101' : imagenet_resnet.wide_resnet101_2,
     }
+
+    transformer_models = {
+        'ViT-B_16': vit.VisionTransformer.from_name('ViT-B_16'),
+        'ViT-B_32' : vit.VisionTransformer.from_name('ViT-B_32'),
+        'ViT-L_16' : vit.VisionTransformer.from_name('ViT-L_16'),
+        'ViT-L_32' : vit.VisionTransformer.from_name('ViT-L_32'),
+        'R50+ViT-B_16' : vit.VisionTransformer.from_name('R50+ViT-B_16')
+    }
+
     models = {
         'default' : default_models,
         'lottery' : lottery_models,
         'tinyimagenet' : tinyimagenet_models,
-        'imagenet' : imagenet_models
+        'imagenet' : imagenet_models,
+        'transformer' : transformer_models
     }
     if model_class == 'imagenet':
         print("WARNING: ImageNet models do not implement `dense_classifier`.")
@@ -179,7 +191,7 @@ def optimizer(optimizer):
         'adam' : (optim.Adam, {}),
         'sgd' : (optim.SGD, {}),
         'momentum' : (optim.SGD, {'momentum' : 0.9, 'nesterov' : True}),
-        'rms' : (optim.RMSprop, {})
+        'rms' : (optim.RMSprop, {}),
     }
     return optimizers[optimizer]
 

@@ -21,9 +21,10 @@ if __name__ == '__main__':
                         'resnet18','resnet20','resnet32','resnet34','resnet44','resnet50',
                         'resnet56','resnet101','resnet110','resnet110','resnet152','resnet1202',
                         'wide-resnet18','wide-resnet20','wide-resnet32','wide-resnet34','wide-resnet44','wide-resnet50',
-                        'wide-resnet56','wide-resnet101','wide-resnet110','wide-resnet110','wide-resnet152','wide-resnet1202'],
+                        'wide-resnet56','wide-resnet101','wide-resnet110','wide-resnet110','wide-resnet152',
+                        'wide-resnet1202', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16'],
                         help='model architecture (default: fc)')
-    training_args.add_argument('--model-class', type=str, default='default', choices=['default','lottery','tinyimagenet','imagenet'],
+    training_args.add_argument('--model-class', type=str, default='default', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
                         help='model class (default: default)')
     training_args.add_argument('--dense-classifier', type=bool, default=False,
                         help='ensure last layer of model is dense (default: False)')
@@ -31,6 +32,8 @@ if __name__ == '__main__':
                         help='load pretrained weights (default: False)')
     training_args.add_argument('--optimizer', type=str, default='adam', choices=['sgd','momentum','adam','rms'],
                         help='optimizer (default: adam)')
+    training_args.add_argument('--sam', type=bool, default=True,
+                               help='Whether to use sharpness aware optimization')
     training_args.add_argument('--train-batch-size', type=int, default=64,
                         help='input batch size for training (default: 64)')
     training_args.add_argument('--test-batch-size', type=int, default=256,
@@ -49,10 +52,10 @@ if __name__ == '__main__':
                         help='weight decay (default: 0.0)')
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
-    pruning_args.add_argument('--pruner', type=str, default='rand', 
+    pruning_args.add_argument('--pruner', type=str, default='synflow',
                         choices=['rand','mag','snip','grasp','synflow'],
                         help='prune strategy (default: rand)')
-    pruning_args.add_argument('--compression', type=float, default=0.0,
+    pruning_args.add_argument('--compression', type=float, default=1.0,
                         help='quotient of prunable non-zero prunable parameters before and after pruning (default: 1.0)')
     pruning_args.add_argument('--prune-epochs', type=int, default=1,
                         help='number of iterations for scoring (default: 1)')
@@ -96,7 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('--result-dir', type=str, default='Results/data',
                         help='path to directory to save results (default: "Results/data")')
     parser.add_argument('--gpu', type=int, default='0',
-                        help='number of GPU device to use (default: 0)')
+                        help='number of GPU devices to use (default: 0)')
     parser.add_argument('--workers', type=int, default='4',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--no-cuda', action='store_true',
