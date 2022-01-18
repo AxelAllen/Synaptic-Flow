@@ -7,6 +7,7 @@ from Utils import load
 from Utils import generator
 from train import *
 from prune import *
+import sam.sam as sam
 
 # Experiment Hyperparameters
 def run(args):
@@ -23,12 +24,24 @@ def run(args):
     train_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.prune_dataset_ratio * num_classes)
 
     ## Model, Loss, Optimizer ##
-    model = load.model(args.model, args.model_class)(input_shape, 
-                                                     num_classes, 
-                                                     args.dense_classifier, 
-                                                     args.pretrained).to(device)
+    if args.model_class == 'transformer':
+        model = load.model(args.model, args.model_class).load_model(args.model,
+                                                                    input_shape,
+                                                                    num_classes,
+                                                                    args.dense_classifier,
+                                                                    args.pretrained).to(device)
+    else:
+        model = load.model(args.model, args.model_class)(input_shape,
+                                                         num_classes,
+                                                         args.dense_classifier,
+                                                         args.pretrained).to(device)
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
-    optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+    if args.sam:
+        opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
+        optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
+    else:
+        optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
     loss = nn.CrossEntropyLoss()
 
@@ -65,10 +78,10 @@ def run(args):
         return average_scores
 
     ## Train and Save Data ##
-    _, inv_size = layer_names(init_model)
+    _, inv_size = layer_names(model)
     Wscore = []
     for epoch in tqdm(range(args.post_epochs)):
-        Wscore.append(average_score(model))
+        Wscore.append(average_mag_score(model))
         train(model, loss, optimizer, train_loader, device, epoch, args.verbose)
         scheduler.step()
 

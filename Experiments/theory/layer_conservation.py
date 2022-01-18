@@ -22,10 +22,17 @@ def run(args):
     data_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.prune_dataset_ratio * num_classes)
 
     ## Model, Loss, Optimizer ##
-    model = load.model(args.model, args.model_class)(input_shape, 
-                                                     num_classes, 
-                                                     args.dense_classifier, 
-                                                     args.pretrained).to(device)
+    if args.model_class == 'transformer':
+        model = load.model(args.model, args.model_class).load_model(args.model,
+                                                                    input_shape,
+                                                                    num_classes,
+                                                                    args.dense_classifier,
+                                                                    args.pretrained).to(device)
+    else:
+        model = load.model(args.model, args.model_class)(input_shape,
+                                                         num_classes,
+                                                         args.dense_classifier,
+                                                         args.pretrained).to(device)
     loss = nn.CrossEntropyLoss()
 
     ## Compute Layer Name and Inv Size ##

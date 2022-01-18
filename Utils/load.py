@@ -158,11 +158,11 @@ def model(model_architecture, model_class):
     }
 
     transformer_models = {
-        'ViT-B_16': vit.VisionTransformer.from_name('ViT-B_16'),
-        'ViT-B_32' : vit.VisionTransformer.from_name('ViT-B_32'),
-        'ViT-L_16' : vit.VisionTransformer.from_name('ViT-L_16'),
-        'ViT-L_32' : vit.VisionTransformer.from_name('ViT-L_32'),
-        'R50+ViT-B_16' : vit.VisionTransformer.from_name('R50+ViT-B_16')
+        'ViT-B_16': vit,
+        'ViT-B_32': vit,
+        'ViT-L_16': vit,
+        'ViT-L_32': vit,
+        'R50+ViT-B_16': vit
     }
 
     models = {
