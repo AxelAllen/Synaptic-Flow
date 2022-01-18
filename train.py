@@ -17,7 +17,7 @@ def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interv
         train_loss.backward()
         if isinstance(optimizer, SAM):
             optimizer.first_step(zero_grad=True)
-            nn.CrossEntropyLoss(model(data), target).backward()
+            loss(model(data), target).backward()
             optimizer.second_step()
         else:
             optimizer.step()
