@@ -28,7 +28,6 @@ def run(args):
         model = load.model(args.model, args.model_class).load_model(args.model,
                                                                     input_shape,
                                                                     num_classes,
-                                                                    args.dense_classifier,
                                                                     args.pretrained).to(device)
     else:
         model = load.model(args.model, args.model_class)(input_shape,

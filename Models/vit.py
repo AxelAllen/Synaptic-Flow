@@ -346,21 +346,19 @@ class VisionTransformer(nn.Module):
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)
 
-def load_model(model_arch, input_shape, num_classes, dense_classifer, pretrained):
+def load_model(model_arch, input_shape, num_classes, pretrained):
     in_channels = input_shape[0]
     image_size = input_shape[1]
     patch_size = next(d for d in range(image_size - 1, 0, -1) if image_size % d == 0)
 
     if pretrained:
         model = VisionTransformer.from_pretrained(model_name=model_arch,
-                                                  dense_classifer=dense_classifer,
                                                   image_size=image_size,
                                                   patch_size=patch_size,
                                                   in_channels=in_channels,
                                                   num_classes=num_classes)
     else:
         model = VisionTransformer.from_name(model_name=model_arch,
-                                            dense_classifer=dense_classifer,
                                             image_size=image_size,
                                             patch_size=patch_size,
                                             in_channels=in_channels,
