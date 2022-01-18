@@ -273,7 +273,7 @@ class VisionTransformer(nn.Module):
         """
         cls._check_model_name_is_valid(model_name)
         params = get_model_params(model_name, override_params)
-        model = cls(params)
+        model = cls(params=params)
         model._change_in_channels(in_channels)
         return model
 
