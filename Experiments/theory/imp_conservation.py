@@ -38,10 +38,11 @@ def run(args):
     if args.sam:
         opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
         optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
+                                                         gamma=args.lr_drop_rate)
     else:
         optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
-
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
     loss = nn.CrossEntropyLoss()
 
     ## Compute Layer Name and Inv Size ##

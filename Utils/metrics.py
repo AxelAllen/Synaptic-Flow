@@ -82,11 +82,11 @@ def flop(model, input_shape, device):
             elif isinstance(module, layers.Identity2d):
                 output_size = output.size(2) * output.size(3)
                 flops['weight'] = module.num_features * output_size
-            elif hasattr(model, 'cls_token') and isinstance(module, model.cls_token):
+            elif hasattr(model, 'cls_token') and isinstance(module, nn.Parameter):
                 in_features = module.shape[2]
                 out_features = model.num_classes
                 flops['weight'] = in_features * out_features
-            elif hasattr(model, 'PositionEmbs') and hasattr(model.PositionEmbs, 'pos_embedding') and isinstance(module, model.PositionEmbs.pos_embedding):
+            elif hasattr(model, 'PositionEmbs') and hasattr(model.PositionEmbs, 'pos_embedding') and isinstance(module, nn.Parameter):
                 in_features = module.shape[1]-1
                 out_features = module.shape[2]
                 flops['weight'] = in_features * out_features
