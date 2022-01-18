@@ -89,8 +89,7 @@ def run(args):
             # Prune Result
             prune_result = metrics.summary(model, 
                                            pruner.scores,
-                                           metrics.flop(model, input_shape, device),
-                                           lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual))
+                                           lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual)) # metrics.flop(model, input_shape, device),
             # Train Model
             post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                           test_loader, device, args.post_epochs, args.verbose)
@@ -100,16 +99,15 @@ def run(args):
             train_result = pd.concat(frames, keys=['Post-Prune', 'Final'])
             prune_result = metrics.summary(model, 
                                    pruner.scores,
-                                   metrics.flop(model, input_shape, device),
-                                   lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual))
+                                   lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual)) # metrics.flop(model, input_shape, device),
             total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
             possible_params = prune_result['size'].sum()
-            total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
-            possible_flops = prune_result['flops'].sum()
+            # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
+            # possible_flops = prune_result['flops'].sum()
             print("Train results:\n", train_result)
             print("Prune results:\n", prune_result)
             print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
-            print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
+            # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
             
             # Save Data
             post_result.to_pickle("{}/post-train-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression),  str(level)))

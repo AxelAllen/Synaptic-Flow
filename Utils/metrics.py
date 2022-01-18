@@ -8,7 +8,7 @@ from Models.vit import VisionTransformer, PositionEmbs, MlpBlock, SelfAttention,
 
 _ignore_modules = [PositionEmbs, MlpBlock, SelfAttention, EncoderBlock, Encoder, nn.Dropout]
 
-def summary(model, scores, flops, prunable):
+def summary(model, scores, prunable, flops=None):
     r"""Summary of compression results for a model.
     """
     rows = []
@@ -22,20 +22,30 @@ def summary(model, scores, flops, prunable):
                 sparsity = 1.0
                 score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
-            flop = flops[name][pname]
+            if flops is not None:
+                flop = flops[name][pname]
             score_mean = score.mean()
             score_var = score.var()
             score_sum = score.sum()
             score_abs_mean = np.abs(score).mean()
             score_abs_var  = np.abs(score).var()
             score_abs_sum  = np.abs(score).sum()
-            rows.append([name, pname, sparsity, np.prod(shape), shape, flop,
+            if flops is not None:
+                rows.append([name, pname, sparsity, np.prod(shape), shape, flop,
                          score_mean, score_var, score_sum, 
                          score_abs_mean, score_abs_var, score_abs_sum, 
                          pruned])
-
-    columns = ['module', 'param', 'sparsity', 'size', 'shape', 'flops', 'score mean', 'score variance', 
+            else:
+                rows.append([name, pname, sparsity, np.prod(shape), shape,
+                             score_mean, score_var, score_sum,
+                             score_abs_mean, score_abs_var, score_abs_sum,
+                             pruned])
+    if flops is not None:
+        columns = ['module', 'param', 'sparsity', 'size', 'shape', 'flops', 'score mean', 'score variance',
                'score sum', 'score abs mean', 'score abs variance', 'score abs sum', 'prunable']
+    else:
+        columns = ['module', 'param', 'sparsity', 'size', 'shape', 'score mean', 'score variance',
+                   'score sum', 'score abs mean', 'score abs variance', 'score abs sum', 'prunable']
     return pd.DataFrame(rows, columns=columns)
 
 def flop(model, input_shape, device):
@@ -51,11 +61,11 @@ def flop(model, input_shape, device):
                 if module.bias is not None:
                     flops['bias'] = out_features
             elif isinstance(module, layers.LinearGeneral):
-                in_features = module.weight.shape[0][0]
-                out_features = module.weight.shape[1][0] * module.weight.shape[1][1]
+                in_features = module.weight.shape[0] * module.weight.shape[1]
+                out_features = torch.flatten(torch.tensordot(input[0], module.weight, dims=([2], [0])), end_dim=-2).shape[0]
                 flops['weight'] = in_features * out_features
                 if module.bias is not None:
-                    flops['bias'] = module.bias.shape[0][0] * module.bias.shape[0][1]
+                    flops['bias'] = module.bias.shape[0] * module.bias.shape[1]
             elif isinstance(module, layers.Conv2d) or isinstance(module, nn.Conv2d):
                 in_channels = module.in_channels
                 out_channels = module.out_channels
