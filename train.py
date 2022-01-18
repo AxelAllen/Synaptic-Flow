@@ -14,12 +14,14 @@ def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interv
         output = model(data)
         train_loss = loss(output, target)
         total += train_loss.item() * data.size(0)
-        train_loss.backward()
+
         if isinstance(optimizer, SAM):
+            train_loss.mean().backward()
             optimizer.first_step(zero_grad=True)
-            loss(model(data), target).backward()
+            loss(model(data), target).mean().backward()
             optimizer.second_step()
         else:
+            train_loss.backward()
             optimizer.step()
         if verbose & (batch_idx % log_interval == 0):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(

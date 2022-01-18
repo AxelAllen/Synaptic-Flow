@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 from prune import * 
 from Layers import layers
+from Models.vit import VisionTransformer, PositionEmbs, MlpBlock, SelfAttention, EncoderBlock, Encoder
+
+_ignore_modules = [PositionEmbs, MlpBlock, SelfAttention, EncoderBlock, Encoder, nn.Dropout]
 
 def summary(model, scores, flops, prunable):
     r"""Summary of compression results for a model.
@@ -47,7 +50,13 @@ def flop(model, input_shape, device):
                 flops['weight'] = in_features * out_features
                 if module.bias is not None:
                     flops['bias'] = out_features
-            if isinstance(module, layers.Conv2d) or isinstance(module, nn.Conv2d):
+            elif isinstance(module, layers.LinearGeneral):
+                in_features = module.weight.shape[0][0]
+                out_features = module.weight.shape[1][0] * module.weight.shape[1][1]
+                flops['weight'] = in_features * out_features
+                if module.bias is not None:
+                    flops['bias'] = module.bias.shape[0][0] * module.bias.shape[0][1]
+            elif isinstance(module, layers.Conv2d) or isinstance(module, nn.Conv2d):
                 in_channels = module.in_channels
                 out_channels = module.out_channels
                 kernel_size = int(np.prod(module.kernel_size))
@@ -55,20 +64,36 @@ def flop(model, input_shape, device):
                 flops['weight'] = in_channels * out_channels * kernel_size * output_size
                 if module.bias is not None:
                     flops['bias'] = out_channels * output_size
-            if isinstance(module, layers.BatchNorm1d) or isinstance(module, nn.BatchNorm1d):
+            elif isinstance(module, layers.BatchNorm1d) or isinstance(module, nn.BatchNorm1d):
                 if module.affine:
                     flops['weight'] = module.num_features
                     flops['bias'] = module.num_features
-            if isinstance(module, layers.BatchNorm2d) or isinstance(module, nn.BatchNorm2d):
+            elif isinstance(module, layers.BatchNorm2d) or isinstance(module, nn.BatchNorm2d):
                 output_size = output.size(2) * output.size(3)
                 if module.affine:
                     flops['weight'] = module.num_features * output_size
                     flops['bias'] = module.num_features * output_size
-            if isinstance(module, layers.Identity1d):
+            elif isinstance(module, layers.LayerNorm) or isinstance(module, nn.LayerNorm):
+                if module.elementwise_affine:
+                    flops['weight'] = module.normalized_shape[0]
+                    flops['bias'] = module.normalized_shape[0]
+            elif isinstance(module, layers.Identity1d):
                 flops['weight'] = module.num_features
-            if isinstance(module, layers.Identity2d):
+            elif isinstance(module, layers.Identity2d):
                 output_size = output.size(2) * output.size(3)
                 flops['weight'] = module.num_features * output_size
+            elif isinstance(module, VisionTransformer.cls_token):
+                in_features = module.shape[2]
+                out_features = model.num_classes
+                flops['weight'] = in_features * out_features
+            elif isinstance(module, PositionEmbs.pos_embedding):
+                in_features = module.shape[1]-1
+                out_features = module.shape[2]
+                flops['weight'] = in_features * out_features
+            elif any(isinstance(module, mod) for mod in _ignore_modules):
+                flops['weight'] = 0
+                if hasattr(module, 'bias') and module.bias is not None:
+                    flops['bias'] = 0
             total[name] = flops
         return hook
     
