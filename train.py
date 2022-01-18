@@ -1,7 +1,9 @@
 import torch
+import torch.nn as nn
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from sam.sam import SAM
 
 def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interval=10):
     model.train()
@@ -13,7 +15,12 @@ def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interv
         train_loss = loss(output, target)
         total += train_loss.item() * data.size(0)
         train_loss.backward()
-        optimizer.step()
+        if isinstance(optimizer, SAM):
+            optimizer.first_step(zero_grad=True)
+            nn.CrossEntropyLoss(model(data), target).backward()
+            optimizer.second_step()
+        else:
+            optimizer.step()
         if verbose & (batch_idx % log_interval == 0):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(dataloader.dataset),
