@@ -13,10 +13,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Network Compression')
     # Training Hyperparameters
     training_args = parser.add_argument_group('training')
-    training_args.add_argument('--dataset', type=str, default='mnist',
+    training_args.add_argument('--dataset', type=str, default='cifar100',
                         choices=['mnist','cifar10','cifar100','tiny-imagenet','imagenet'],
                         help='dataset (default: mnist)')
-    training_args.add_argument('--model', type=str, default='fc', choices=['fc','conv',
+    training_args.add_argument('--model', type=str, default='ViT-B_16', choices=['fc','conv',
                         'vgg11','vgg11-bn','vgg13','vgg13-bn','vgg16','vgg16-bn','vgg19','vgg19-bn',
                         'resnet18','resnet20','resnet32','resnet34','resnet44','resnet50',
                         'resnet56','resnet101','resnet110','resnet110','resnet152','resnet1202',
@@ -24,7 +24,7 @@ if __name__ == '__main__':
                         'wide-resnet56','wide-resnet101','wide-resnet110','wide-resnet110','wide-resnet152',
                         'wide-resnet1202', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16'],
                         help='model architecture (default: fc)')
-    training_args.add_argument('--model-class', type=str, default='default', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
+    training_args.add_argument('--model-class', type=str, default='transformer', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
                         help='model class (default: default)')
     training_args.add_argument('--dense-classifier', type=bool, default=False,
                         help='ensure last layer of model is dense (default: False)')
@@ -38,7 +38,7 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     training_args.add_argument('--test-batch-size', type=int, default=256,
                         help='input batch size for testing (default: 256)')
-    training_args.add_argument('--pre-epochs', type=int, default=0,
+    training_args.add_argument('--pre-epochs', type=int, default=1,
                         help='number of epochs to train before pruning (default: 0)')
     training_args.add_argument('--post-epochs', type=int, default=10,
                         help='number of epochs to train after pruning (default: 10)')
@@ -96,10 +96,10 @@ if __name__ == '__main__':
                         help='experiment name (default: example)')
     parser.add_argument('--expid', type=str, default='',
                         help='name used to save results (default: "")')
-    parser.add_argument('--result-dir', type=str, default='Results/data',
-                        help='path to directory to save results (default: "Results/data")')
+    parser.add_argument('--result-dir', type=str, default='Results/vit/data',
+                        help='path to directory to save results (default: "Results/vit/data")')
     parser.add_argument('--gpu', type=int, default='0',
-                        help='number of GPU devices to use (default: 0)')
+                        help='number of GPU device to use (default: 0)')
     parser.add_argument('--workers', type=int, default='4',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--no-cuda', action='store_true',
@@ -132,6 +132,9 @@ if __name__ == '__main__':
     if args.save:
         with open(args.result_dir + '/args.json', 'w') as f:
             json.dump(args.__dict__, f, sort_keys=True, indent=4)
+
+    if args.sam is False:
+        print(f"Sharpness Aware Minimization disabled. Using base optimizer {args.optimizer}")
 
     ## Run Experiment ##
     if args.experiment == 'singleshot':

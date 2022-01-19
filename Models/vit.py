@@ -176,7 +176,7 @@ class VisionTransformer(nn.Module):
         References:
             [1] https://arxiv.org/abs/2010.11929 (An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale)
     """
-    def __init__(self, dense_classifier=False, params=None):
+    def __init__(self, dense_classifier=True, params=None):
         super(VisionTransformer, self).__init__()
         self._params = params
 
