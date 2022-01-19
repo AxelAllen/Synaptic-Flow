@@ -32,7 +32,7 @@ if __name__ == '__main__':
                         help='load pretrained weights (default: False)')
     training_args.add_argument('--optimizer', type=str, default='adam', choices=['sgd','momentum','adam','rms'],
                         help='optimizer (default: adam)')
-    training_args.add_argument('--sam', type=bool, default=True,
+    training_args.add_argument('--sam', action='store_true',
                                help='Whether to use sharpness aware optimization')
     training_args.add_argument('--train-batch-size', type=int, default=64,
                         help='input batch size for training (default: 64)')
