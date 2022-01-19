@@ -133,9 +133,6 @@ if __name__ == '__main__':
         with open(args.result_dir + '/args.json', 'w') as f:
             json.dump(args.__dict__, f, sort_keys=True, indent=4)
 
-    if args.sam is False:
-        print(f"Sharpness Aware Minimization disabled. Using base optimizer {args.optimizer}")
-
     ## Run Experiment ##
     if args.experiment == 'singleshot':
         singleshot.run(args)
