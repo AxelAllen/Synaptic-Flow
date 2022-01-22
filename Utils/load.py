@@ -14,9 +14,14 @@ from Models import vit
 from Pruners import pruners
 from Utils import custom_datasets
 
-def device(gpu):
+def device(gpu, distributed):
     use_cuda = torch.cuda.is_available()
-    return torch.device(("cuda:" + str(gpu)) if use_cuda else "cpu")
+    if distributed and use_cuda:
+        return torch.device("cuda")
+    elif gpu is not None:
+        return torch.device(("cuda:" + str(gpu)) if use_cuda else "cpu")
+    else:
+        return torch.device("cpu")
 
 def dimension(dataset):
     if dataset == 'mnist':
@@ -40,7 +45,7 @@ def get_transform(size, padding, mean, std, preprocess):
     transform.append(transforms.Normalize(mean, std))
     return transforms.Compose(transform)
 
-def dataloader(dataset, batch_size, train, workers, length=None):
+def dataloader(dataset, batch_size, train, workers, distributed, length=None):
     # Dataset
     if dataset == 'mnist':
         mean, std = (0.1307,), (0.3081,)
@@ -76,21 +81,36 @@ def dataloader(dataset, batch_size, train, workers, length=None):
                 transforms.Normalize(mean, std)])
         folder = 'Data/imagenet_raw/{}'.format('train' if train else 'val')
         dataset = datasets.ImageFolder(folder, transform=transform)
+        if distributed and train:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        else:
+            train_sampler = None
     
     # Dataloader
     use_cuda = torch.cuda.is_available()
     kwargs = {'num_workers': workers, 'pin_memory': True} if use_cuda else {}
-    shuffle = train is True
+    shuffle = train is True and train_sampler is None
     if length is not None:
         indices = torch.randperm(len(dataset))[:length]
         dataset = torch.utils.data.Subset(dataset, indices)
 
-    dataloader = torch.utils.data.DataLoader(dataset=dataset, 
+    if train:
+        dataloader = torch.utils.data.DataLoader(dataset=dataset,
                                              batch_size=batch_size, 
-                                             shuffle=shuffle, 
+                                             shuffle=shuffle,
+                                             pin_memory=True,
+                                             sampler=train_sampler
                                              **kwargs)
-
-    return dataloader
+    else:
+        dataloader = torch.utils.data.DataLoader(dataset=dataset,
+                                                 batch_size=batch_size,
+                                                 shuffle=shuffle,
+                                                 pin_memory=True,
+                                                 **kwargs)
+    if train:
+        return dataloader, train_sampler
+    else:
+        return dataloader
 
 def model(model_architecture, model_class):
     default_models = {

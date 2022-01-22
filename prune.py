@@ -2,7 +2,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 
-def prune_loop(model, loss, pruner, dataloader, device, sparsity, schedule, scope, epochs,
+def prune_loop(model, loss, pruner, dataloader, sampler, gpu_id, sparsity, schedule, scope, epochs, distributed,
                reinitialize=False, train_mode=False, shuffle=False, invert=False):
     r"""Applies score mask loop iteratively to a final sparsity level.
     """
@@ -13,7 +13,9 @@ def prune_loop(model, loss, pruner, dataloader, device, sparsity, schedule, scop
 
     # Prune model
     for epoch in tqdm(range(epochs)):
-        pruner.score(model, loss, dataloader, device)
+        if distributed:
+            sampler.set_epoch(epoch)
+        pruner.score(model, loss, dataloader, gpu_id)
         if schedule == 'exponential':
             sparse = sparsity**((epoch + 1) / epochs)
         elif schedule == 'linear':

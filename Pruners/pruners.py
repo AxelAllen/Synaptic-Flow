@@ -6,7 +6,7 @@ class Pruner:
         self.masked_parameters = list(masked_parameters)
         self.scores = {}
 
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
         raise NotImplementedError
 
     def _global_mask(self, sparsity):
@@ -86,7 +86,7 @@ class Rand(Pruner):
     def __init__(self, masked_parameters):
         super(Rand, self).__init__(masked_parameters)
 
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
         for _, p in self.masked_parameters:
             self.scores[id(p)] = torch.randn_like(p)
 
@@ -95,7 +95,7 @@ class Mag(Pruner):
     def __init__(self, masked_parameters):
         super(Mag, self).__init__(masked_parameters)
     
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
         for _, p in self.masked_parameters:
             self.scores[id(p)] = torch.clone(p.data).detach().abs_()
 
@@ -105,7 +105,7 @@ class SNIP(Pruner):
     def __init__(self, masked_parameters):
         super(SNIP, self).__init__(masked_parameters)
 
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
 
         # allow masks to have gradient
         for m, _ in self.masked_parameters:
@@ -113,7 +113,10 @@ class SNIP(Pruner):
 
         # compute gradient
         for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
+            if torch.cuda.is_available() and gpu_id is not None:
+                data, target = data.cuda(gpu_id, non_blocking=True), target.cuda(gpu_id, non_blocking=True)
+            elif torch.cuda.is_available():
+                data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             output = model(data)
             loss(output, target).backward()
 
@@ -138,12 +141,15 @@ class GraSP(Pruner):
         self.temp = 200
         self.eps = 1e-10
 
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
 
         # first gradient vector without computational graph
         stopped_grads = 0
         for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
+            if torch.cuda.is_available() and gpu_id is not None:
+                data, target = data.cuda(gpu_id, non_blocking=True), target.cuda(gpu_id, non_blocking=True)
+            elif torch.cuda.is_available():
+                data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             output = model(data) / self.temp
             L = loss(output, target)
 
@@ -153,7 +159,10 @@ class GraSP(Pruner):
 
         # second gradient vector with computational graph
         for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
+            if torch.cuda.is_available() and gpu_id is not None:
+                data, target = data.cuda(gpu_id, non_blocking=True), target.cuda(gpu_id, non_blocking=True)
+            elif torch.cuda.is_available():
+                data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
             output = model(data) / self.temp
             L = loss(output, target)
 
@@ -179,7 +188,7 @@ class SynFlow(Pruner):
     def __init__(self, masked_parameters):
         super(SynFlow, self).__init__(masked_parameters)
 
-    def score(self, model, loss, dataloader, device):
+    def score(self, model, loss, dataloader, gpu_id):
       
         @torch.no_grad()
         def linearize(model):
@@ -200,7 +209,12 @@ class SynFlow(Pruner):
 
         (data, _) = next(iter(dataloader))
         input_dim = list(data[0,:].shape)
-        input = torch.ones([1] + input_dim).to(device)#, dtype=torch.float64).to(device)
+        if torch.cuda.is_available() and gpu_id is not None:
+           input = torch.ones([1] + input_dim).cuda(gpu_id, non_blocking=True)
+        elif torch.cuda.is_available():
+            input = torch.ones([1] + input_dim).cuda(non_blocking=True)
+        else:
+            input = torch.ones([1] + input_dim)
         output = model(input)
         torch.sum(output).backward()
         

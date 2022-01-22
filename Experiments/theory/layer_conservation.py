@@ -8,7 +8,7 @@ from Utils import generator
 from train import *
 from prune import *
 
-def run(args):
+def run(args, ngpus_per_node):
     if not args.save:
         print("This experiment requires an expid.")
         quit()
