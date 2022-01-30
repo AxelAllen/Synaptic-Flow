@@ -93,9 +93,9 @@ class PLModel(pl.LightningModule):
         return {'loss': val_loss, 'acc1': acc1, 'acc5': acc5}
 
     def validation_epoch_end(self, outputs):
-        avg_loss = np.mean([x['loss'].detach.numpy() for x in outputs])
-        avg_acc1 = np.mean([x['acc1'].detach.numpy() for x in outputs])
-        avg_acc5 = np.mean([x['acc5'].detach.numpy() for x in outputs])
+        avg_loss = torch.tensor([x['loss'] for x in outputs]).mean()
+        avg_acc1 = torch.tensor([x['acc1'] for x in outputs]).mean()
+        avg_acc5 = torch.tensor([x['acc5'] for x in outputs]).mean()
 
         return {'avg_loss': avg_loss, 'avg_acc1': avg_acc1, 'avg_acc5': avg_acc5}
 
