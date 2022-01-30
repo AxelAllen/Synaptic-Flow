@@ -346,18 +346,21 @@ class VisionTransformer(nn.Module):
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)
 
-def load_model(model_arch, input_shape, num_classes, pretrained):
+def load_model(model_arch, input_shape, patch_size, emb_dim, mlp_dim, num_heads, num_layers, num_classes, pretrained):
     in_channels = input_shape[0]
     image_size = input_shape[1]
-    patch_size = next(d for d in range(image_size - 1, 0, -1) if image_size % d == 0)
-    override_params = {'image_size': image_size, 'patch_size': patch_size, 'in_channels' : in_channels, 'num_classes' : num_classes}
 
-    # for debugging
-    # override_params = {'image_size': image_size, 'patch_size': patch_size, 'emb_dim' : 128, 'mlp_dim' : 256, 'num_heads' : 2, 'num_layers' : 2, 'in_channels' : in_channels,
-    #                   'num_classes' : num_classes}
+    override_params = {'image_size' : image_size,
+                       'patch_size' : patch_size,
+                       'emb_dim' : emb_dim,
+                       'mlp_dim' : mlp_dim,
+                       'num_heads' : num_heads,
+                       'num_layers' : num_layers,
+                       'in_channels' : in_channels,
+                       'num_classes' : num_classes}
 
     if pretrained:
-        model = VisionTransformer.from_pretrained(model_name=model_arch **override_params)
+        model = VisionTransformer.from_pretrained(model_name=model_arch, **override_params)
     else:
         model = VisionTransformer.from_name(model_name=model_arch, **override_params)
     return model

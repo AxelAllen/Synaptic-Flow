@@ -1,98 +1,67 @@
-import numpy as np
-import pandas as pd
 import torch
-import torch.nn as nn
-from Utils import load
-from Utils import generator
-from Utils import metrics
-from train import *
-from prune import *
-import sam.sam as sam
+from Models.pl_model import PLModel, CustomPruningCallback, ImpConservationCallback, ScheduleConservationCallback
+import pytorch_lightning as pl
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
+import GPUtil
+import wandb
 
 # from pthflops import count_ops
 
 def run(args):
+
+    ## Unpack arguments ##
+    train_args = args['training']
+    model_args = args['model']
+    prune_args = args['pruning']
+    args = args['general']
+
+
     ## Random Seed and Device ##
-    torch.manual_seed(args.seed)
-    device = load.device(args.gpu)
+    pl.seed_everything(args.seed)
 
-    ## Data ##
-    print('Loading {} dataset.'.format(args.dataset))
-    input_shape, num_classes = load.dimension(args.dataset) 
-    prune_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.prune_dataset_ratio * num_classes)
-    train_loader = load.dataloader(args.dataset, args.train_batch_size, True, args.workers)
-    test_loader = load.dataloader(args.dataset, args.test_batch_size, False, args.workers)
+    ## Model ##
+    print('Creating {}-{} model.'.format(model_args['model_class'], model_args['model']))
+    model = PLModel(**model_args)
 
-    ## Model, Loss, Optimizer ##
-    print('Creating {}-{} model.'.format(args.model_class, args.model))
-    if args.model_class == 'transformer':
-        model = load.model(args.model, args.model_class).load_model(args.model,
-                                                                    input_shape,
-                                                                    num_classes,
-                                                                    args.pretrained).to(device)
-    else:
-        model = load.model(args.model, args.model_class)(input_shape,
-                                                         num_classes,
-                                                         args.dense_classifier,
-                                                         args.pretrained).to(device)
-    loss = nn.CrossEntropyLoss()
-    opt_class, opt_kwargs = load.optimizer(args.optimizer)
-    if args.sam:
-        opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
-        optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
-                                                         gamma=args.lr_drop_rate)
-    else:
-        print(f"Sharpness Aware Minimization disabled. Using base optimizer {args.optimizer}")
-        optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
+    ## Logger ##
+    wandb_logger = WandbLogger(project='vit_synflow')
 
+    ## Callbacks ##
+    callbacks = []
+    if args.save_checkpoint:
+        custom_checkpoint_callback = ModelCheckpoint(dirpath=args.result_dir,
+                                                                filename=args.expid,
+                                                                save_last=True)
+        callbacks.append(custom_checkpoint_callback)
+    if args.prune:
+        pruning_callback = CustomPruningCallback(model, prune_args)
+        callbacks.append(pruning_callback)
 
-    ## Pre-Train ##
-    print('Pre-Train for {} epochs.'.format(args.pre_epochs))
-    pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                 test_loader, device, args.pre_epochs, args.verbose)
+    if args.imp_conservation:
+        imp_callback = ImpConservationCallback(model)
+        callbacks.append(imp_callback)
 
-    ## Prune ##
-    print('Pruning with {} for {} epochs.'.format(args.pruner, args.prune_epochs))
-    pruner = load.pruner(args.pruner)(generator.masked_parameters(model, args.prune_bias, args.prune_batchnorm, args.prune_residual))
-    sparsity = 10**(-float(args.compression))
-    prune_loop(model, loss, pruner, prune_loader, device, sparsity, 
-               args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+    train_args.update({'max_epochs': model_args['pre_epochs'] + model_args['post_epochs']})
+     
+
+    ## Instantiate Model and Trainer
+    trainer = pl.Trainer(logger=wandb_logger, callbacks=callbacks, **train_args)
+
+    ## Train and Prune ##
+    trainer.fit(model)
+    #GPUtil.showUtilization()
+
+    ## Test ##
+
+    trainer.test(model, ckpt_path=None)
+    #GPUtil.showUtilization()
+
+    wandb.finish()
 
     
-    ## Post-Train ##
-    print('Post-Training for {} epochs.'.format(args.post_epochs))
-    post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                  test_loader, device, args.post_epochs, args.verbose) 
 
-    ## Count Flops ##
-    # (data, _) = next(iter(train_loader))
-    # ops, all_data = count_ops(model, data)
 
-    ## Display Results ##
-    frames = [pre_result.head(1), pre_result.tail(1), post_result.head(1), post_result.tail(1)]
-    train_result = pd.concat(frames, keys=['Init.', 'Pre-Prune', 'Post-Prune', 'Final'])
-    prune_result = metrics.summary(model, 
-                                   pruner.scores,
-                                   lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual)) # metrics.flop(model, input_shape, device),
-    total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
-    possible_params = prune_result['size'].sum()
-    # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
-    # possible_flops = prune_result['flops'].sum()
-    print("Train results:\n", train_result)
-    print("Prune results:\n", prune_result)
-    print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
-    # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
 
-    ## Save Results and Model ##
-    if args.save:
-        print('Saving results.')
-        pre_result.to_pickle("{}/pre-train.pkl".format(args.result_dir))
-        post_result.to_pickle("{}/post-train.pkl".format(args.result_dir))
-        prune_result.to_pickle("{}/compression.pkl".format(args.result_dir))
-        torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))
-        torch.save(optimizer.state_dict(),"{}/optimizer.pt".format(args.result_dir))
-        torch.save(scheduler.state_dict(),"{}/scheduler.pt".format(args.result_dir))
 
 

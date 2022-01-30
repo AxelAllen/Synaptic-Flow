@@ -1,8 +1,10 @@
 import torch
 import numpy as np
 
-class Pruner:
+class Pruner():
+
     def __init__(self, masked_parameters):
+        super(Pruner, self).__init__()
         self.masked_parameters = list(masked_parameters)
         self.scores = {}
 

@@ -1,5 +1,4 @@
 import torch
-import torch.multiprocessing as multiprocessing
 import numpy as np
 from torchvision import datasets, transforms
 import torch.optim as optim
@@ -13,10 +12,6 @@ from Models import imagenet_resnet
 from Models import vit
 from Pruners import pruners
 from Utils import custom_datasets
-
-def device(gpu):
-    use_cuda = torch.cuda.is_available()
-    return torch.device(("cuda:" + str(gpu)) if use_cuda else "cpu")
 
 def dimension(dataset):
     if dataset == 'mnist':
