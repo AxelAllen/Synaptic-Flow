@@ -25,7 +25,9 @@ def run(args):
     model = PLModel(**model_args)
 
     ## Logger ##
-    wandb_logger = WandbLogger(project='vit_synflow')
+    if args.log:
+        wandb_logger = WandbLogger(project='vit_synflow')
+        train_args.update({'logger': wandb_logger})
 
     ## Callbacks ##
     callbacks = []
@@ -47,7 +49,7 @@ def run(args):
         schedule_callback = ScheduleConservationCallback(model, args.compression_list, args.prune_epoch_list, prune_args.prune_bias, prune_args.prune_batchnorm, prune_args.prune_residual)
 
     ## Instantiate Model and Trainer
-    trainer = pl.Trainer(logger=wandb_logger, callbacks=callbacks, fast_dev_run=args.fast_dev_run, **train_args)
+    trainer = pl.Trainer(callbacks=callbacks, **train_args)
 
     ## Save Original ##
     torch.save(model.model.state_dict(),"{}/model.pt".format(args.result_dir))
@@ -80,5 +82,6 @@ def run(args):
                 model.optimizer.load_state_dict(torch.load("{}/optimizer.pt".format(args.result_dir), map_location=model.device))
                 model.scheduler.load_state_dict(torch.load("{}/scheduler.pt".format(args.result_dir), map_location=model.device))
 
-    wandb.finish()
+    if args.log:
+        wandb.finish()
 

@@ -25,7 +25,9 @@ def run(args):
     model = PLModel(**model_args)
 
     ## Logger ##
-    wandb_logger = WandbLogger(project='vit_synflow')
+    if args.log:
+        wandb_logger = WandbLogger(project='vit_synflow')
+        train_args.update({'logger': wandb_logger})
 
     ## Callbacks ##
     callbacks = []
@@ -46,7 +48,7 @@ def run(args):
      
 
     ## Instantiate Model and Trainer
-    trainer = pl.Trainer(logger=wandb_logger, callbacks=callbacks, **train_args)
+    trainer = pl.Trainer(callbacks=callbacks, **train_args)
 
     ## Train and Prune ##
     trainer.fit(model)
@@ -56,8 +58,8 @@ def run(args):
 
     trainer.test(model, ckpt_path=None)
     #GPUtil.showUtilization()
-
-    wandb.finish()
+    if args.log:
+        wandb.finish()
 
     
 

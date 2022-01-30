@@ -148,6 +148,8 @@ if __name__ == '__main__':
                               help='list of compression ratio exponents for singleshot/multishot (default: [])')
     general_args.add_argument('--level-list', type=int, nargs='*', default=[],
                               help='list of number of prune-train cycles (levels) for multishot (default: [])')
+    general_args.add_argument('--log', type=bool, default=False,
+                              help='whether to log the experiments')
     all_args = parser.parse_args()
 
     for group in parser._action_groups:
