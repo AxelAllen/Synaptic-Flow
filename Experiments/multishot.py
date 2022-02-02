@@ -22,8 +22,8 @@ def run(args):
     print('Loading {} dataset.'.format(args.dataset))
     input_shape, num_classes = load.dimension(args.dataset) 
     prune_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.prune_dataset_ratio * num_classes)
-    train_loader = load.dataloader(args.dataset, args.train_batch_size, True, args.workers)
-    test_loader = load.dataloader(args.dataset, args.test_batch_size, False, args.workers)
+    train_loader = load.dataloader(args.dataset, args.train_batch_size, True, args.workers, args.dataset_length)
+    test_loader = load.dataloader(args.dataset, args.test_batch_size, False, args.workers, args.dataset_length)
 
     ## Model ##
     print('Creating {} model.'.format(args.model))
