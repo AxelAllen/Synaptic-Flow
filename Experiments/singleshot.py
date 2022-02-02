@@ -28,6 +28,7 @@ def run(args):
     if args.model_class == 'transformer':
         model = load.model(args.model, args.model_class).load_model(args.model,
                                                                     input_shape,
+                                                                    args.patch_size,
                                                                     num_classes,
                                                                     args.pretrained).to(device)
     else:

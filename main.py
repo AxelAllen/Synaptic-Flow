@@ -52,6 +52,8 @@ if __name__ == '__main__':
                         help='multiplicative factor of learning rate drop (default: 0.1)')
     training_args.add_argument('--weight-decay', type=float, default=0.0,
                         help='weight decay (default: 0.0)')
+    training_args.add_argument('--patch-size', type=int, default=16,
+                               help='patch size for ViT models')
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
     pruning_args.add_argument('--pruner', type=str, default='synflow',
