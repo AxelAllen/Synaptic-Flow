@@ -351,7 +351,6 @@ class VisionTransformer(nn.Module):
 
     def _change_patch_size(self, patch_size):
         self._params.patch_size = patch_size
-        self._change_in_channels(self._params.in_channels)
 
     def _change_num_classes(self, num_classes):
         self._params.num_classes = num_classes
@@ -360,25 +359,11 @@ class VisionTransformer(nn.Module):
 
 
 def load_model(model_arch, input_shape, patch_size, num_classes, pretrained):
-    in_channels = input_shape[0]
     if pretrained:
-        image_size = 384
-        num_classes = 1000
-        if model_arch.endswith('16'):
-            patch_size = 16
-        elif model_arch.endswith('32'):
-            patch_size = 32
+        model = VisionTransformer.from_pretrained(model_name=model_arch)
     else:
+        in_channels = input_shape[0]
         image_size = input_shape[1]
-    override_params = {'image_size': image_size, 'patch_size': patch_size, 'in_channels' : in_channels, 'num_classes' : num_classes}
-
-    # for debugging
-    # override_params = {'image_size': image_size, 'patch_size': patch_size, 'emb_dim' : 128, 'mlp_dim' : 256, 'num_heads' : 2, 'num_layers' : 2, 'in_channels' : in_channels,
-    #                   'num_classes' : num_classes}
-
-    if pretrained:
-        model = VisionTransformer.from_pretrained(model_name=model_arch, **override_params)
-
-    else:
+        override_params = {'image_size': image_size, 'patch_size': patch_size, 'in_channels' : in_channels, 'num_classes' : num_classes}
         model = VisionTransformer.from_name(model_name=model_arch, **override_params)
     return model
