@@ -11,7 +11,7 @@ from Layers import layers
 from .utils import (get_width_and_height_from_size, load_pretrained_weights,
                     get_model_params)
 
-VALID_MODELS = ('ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16')
+VALID_MODELS = ('ViT-Ti', 'ViT-S_32', 'ViT-S_16', 'ViT-S_14', 'ViT-S_8', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16')
 
 
 class PositionEmbs(nn.Module):
@@ -346,14 +346,30 @@ class VisionTransformer(nn.Module):
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)
 
+    def _change_image_size(self, image_size):
+        self._params.image_size = image_size
+
+    def _change_patch_size(self, patch_size):
+        self._params.patch_size = patch_size
+        self._change_in_channels(self._params.in_channels)
+
+    def _change_num_classes(self, num_classes):
+        self._params.num_classes = num_classes
+
+
+
+
 def load_model(model_arch, input_shape, patch_size, num_classes, pretrained):
     in_channels = input_shape[0]
-    image_size = input_shape[1]
     if pretrained:
+        image_size = 384
+        num_classes = 1000
         if model_arch.endswith('16'):
             patch_size = 16
         elif model_arch.endswith('32'):
             patch_size = 32
+    else:
+        image_size = input_shape[1]
     override_params = {'image_size': image_size, 'patch_size': patch_size, 'in_channels' : in_channels, 'num_classes' : num_classes}
 
     # for debugging
@@ -362,6 +378,7 @@ def load_model(model_arch, input_shape, patch_size, num_classes, pretrained):
 
     if pretrained:
         model = VisionTransformer.from_pretrained(model_name=model_arch, **override_params)
+
     else:
         model = VisionTransformer.from_name(model_name=model_arch, **override_params)
     return model
