@@ -158,6 +158,11 @@ def model(model_architecture, model_class):
     }
 
     transformer_models = {
+        'ViT-Ti': vit,
+        'ViT-S_32': vit,
+        'ViT-S_16': vit,
+        'ViT-S_14': vit,
+        'ViT-S_8': vit,
         'ViT-B_16': vit,
         'ViT-B_32': vit,
         'ViT-L_16': vit,
