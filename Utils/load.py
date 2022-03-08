@@ -40,23 +40,31 @@ def get_transform(size, padding, mean, std, preprocess):
     transform.append(transforms.Normalize(mean, std))
     return transforms.Compose(transform)
 
-def dataloader(dataset, batch_size, train, workers, length=None):
+def dataloader(dataset, batch_size, train, workers, image_size=None, length=None):
     # Dataset
     if dataset == 'mnist':
+        if image_size is None:
+            image_size = 28
         mean, std = (0.1307,), (0.3081,)
-        transform = get_transform(size=28, padding=0, mean=mean, std=std, preprocess=False)
+        transform = get_transform(size=image_size, padding=0, mean=mean, std=std, preprocess=False)
         dataset = datasets.MNIST('Data', train=train, download=True, transform=transform)
     if dataset == 'cifar10':
+        if image_size is None:
+            image_size = 32
         mean, std = (0.491, 0.482, 0.447), (0.247, 0.243, 0.262)
-        transform = get_transform(size=32, padding=4, mean=mean, std=std, preprocess=train)
+        transform = get_transform(size=image_size, padding=4, mean=mean, std=std, preprocess=train)
         dataset = datasets.CIFAR10('Data', train=train, download=True, transform=transform) 
     if dataset == 'cifar100':
+        if image_size is None:
+            image_size = 32
         mean, std = (0.507, 0.487, 0.441), (0.267, 0.256, 0.276)
-        transform = get_transform(size=32, padding=4, mean=mean, std=std, preprocess=train)
+        transform = get_transform(size=image_size, padding=4, mean=mean, std=std, preprocess=train)
         dataset = datasets.CIFAR100('Data', train=train, download=True, transform=transform)
     if dataset == 'tiny-imagenet':
+        if image_size is None:
+            image_size = 64
         mean, std = (0.480, 0.448, 0.397), (0.276, 0.269, 0.282)
-        transform = get_transform(size=64, padding=4, mean=mean, std=std, preprocess=train)
+        transform = get_transform(size=image_size, padding=4, mean=mean, std=std, preprocess=train)
         dataset = custom_datasets.TINYIMAGENET('Data', train=train, download=True, transform=transform)
     if dataset == 'imagenet':
         mean, std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
