@@ -18,17 +18,27 @@ def device(gpu):
     use_cuda = torch.cuda.is_available()
     return torch.device(("cuda:" + str(gpu)) if use_cuda else "cpu")
 
-def dimension(dataset):
+def dimension(dataset, image_size=None):
     if dataset == 'mnist':
-        input_shape, num_classes = (1, 28, 28), 10
+        if image_size is None:
+            image_size = 28
+        input_shape, num_classes = (1, image_size, image_size), 10
     if dataset == 'cifar10':
-        input_shape, num_classes = (3, 32, 32), 10
+        if image_size is None:
+            image_size = 32
+        input_shape, num_classes = (3, image_size, image_size), 10
     if dataset == 'cifar100':
-        input_shape, num_classes = (3, 32, 32), 100
+        if image_size is None:
+            image_size = 32
+        input_shape, num_classes = (3, image_size, image_size), 100
     if dataset == 'tiny-imagenet':
-        input_shape, num_classes = (3, 64, 64), 200
+        if image_size is None:
+            image_size = 64
+        input_shape, num_classes = (3, image_size, image_size), 200
     if dataset == 'imagenet':
-        input_shape, num_classes = (3, 224, 224), 1000
+        if image_size is None:
+            image_size = 224
+        input_shape, num_classes = (3, image_size, image_size), 1000
     return input_shape, num_classes
 
 def get_transform(size, padding, mean, std, preprocess):

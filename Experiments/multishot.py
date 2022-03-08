@@ -20,7 +20,7 @@ def run(args):
 
     ## Data ##
     print('Loading {} dataset.'.format(args.dataset))
-    input_shape, num_classes = load.dimension(args.dataset) 
+    input_shape, num_classes = load.dimension(args.dataset, args.image_size)
     prune_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.image_size, args.prune_dataset_ratio * num_classes)
     train_loader = load.dataloader(args.dataset, args.train_batch_size, True, args.workers, args.image_size, args.dataset_length)
     test_loader = load.dataloader(args.dataset, args.test_batch_size, False, args.workers, args.image_size, args.dataset_length)
