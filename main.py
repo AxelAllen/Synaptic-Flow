@@ -54,7 +54,7 @@ if __name__ == '__main__':
                         help='weight decay (default: 0.0)')
     training_args.add_argument('--patch-size', type=int, default=16,
                                help='patch size for ViT models')
-    training_args.add_argument('--image_size', type=int, default=None,
+    training_args.add_argument('--image-size', type=int, default=None,
                                help="Size of the input image")
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
