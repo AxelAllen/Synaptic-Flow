@@ -79,6 +79,8 @@ def dataloader(dataset, batch_size, train, workers, image_size=None, length=None
         dataset = custom_datasets.TINYIMAGENET('Data', train=train, download=True, transform=transform)
     if dataset == 'imagenet':
         mean, std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+        if image_size is None:
+            image_size = 256
         if train:
             transform = transforms.Compose([
                 transforms.RandomResizedCrop(224, scale=(0.2,1.)),
@@ -89,7 +91,7 @@ def dataloader(dataset, batch_size, train, workers, image_size=None, length=None
                 transforms.Normalize(mean, std)])
         else:
             transform = transforms.Compose([
-                transforms.Resize(256),
+                transforms.Resize(image_size),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize(mean, std)])

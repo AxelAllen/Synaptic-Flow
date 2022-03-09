@@ -359,10 +359,11 @@ class VisionTransformer(nn.Module):
 
 
 def load_model(model_arch, input_shape, patch_size, num_classes, pretrained):
+    in_channels = input_shape[0]
     if pretrained:
-        model = VisionTransformer.from_pretrained(model_name=model_arch)
+        model = VisionTransformer.from_pretrained(model_name=model_arch, in_channels=in_channels,
+                        num_classes=num_classes)
     else:
-        in_channels = input_shape[0]
         image_size = input_shape[1]
         override_params = {'image_size': image_size, 'patch_size': patch_size, 'in_channels' : in_channels, 'num_classes' : num_classes}
         model = VisionTransformer.from_name(model_name=model_arch, **override_params)
