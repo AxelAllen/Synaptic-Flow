@@ -20,7 +20,7 @@ def summary(model, scores, prunable):
     """
     rows = []
     for name, module in model.named_modules():
-        for pname, param in module.named_parameters():
+        for pname, param in module.named_parameters(recurse=False):
             zero_params = float(torch.sum(param == 0))
             total_params = float(param.nelement())
             sparsity = zero_params / total_params
@@ -29,7 +29,7 @@ def summary(model, scores, prunable):
                 score = scores[(module, name)]
             else:
                 pruned = False
-                score = 1.0
+                score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
             score_mean = score.mean()
             score_var = score.var()
