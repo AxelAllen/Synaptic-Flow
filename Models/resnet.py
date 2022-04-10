@@ -7,10 +7,28 @@ import torch.nn.functional as F
 
 from os.path import join as pjoin
 from collections import OrderedDict
-from Layers import layers
+
+class StdConv2d(nn.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, dilation=1, groups=1,
+                 bias=True, padding_mode='zeros'):
+        super(nn.Conv2d, self).__init__(
+            in_channels, out_channels, kernel_size, stride, padding,
+            dilation, groups, bias, padding_mode)
+
+    def weight_standardize(w, dim, eps):
+        """Subtracts mean and divides by standard deviation."""
+        w = w - torch.mean(w, dim=dim)
+        w = w / (torch.std(w, dim=dim) + eps)
+        return w
+
+    def forward(self, x):
+        w = self.weight_standardize(self.weight, [0, 1, 2], 1e-5)
+        return F.conv2d(x, w, self.bias, self.stride, self.padding,
+                        self.dilation, self.groups)
 
 def conv3x3(in_channels, out_channels, stride=1, groups=1, bias=False):
-    return layers.StdConv2d(in_channels,
+    return StdConv2d(in_channels,
                      out_channels,
                      kernel_size=3,
                      stride=stride,
@@ -20,7 +38,7 @@ def conv3x3(in_channels, out_channels, stride=1, groups=1, bias=False):
 
 
 def conv1x1(in_channels, out_channels, stride=1, bias=False):
-    return layers.StdConv2d(in_channels,
+    return StdConv2d(in_channels,
                      out_channels,
                      kernel_size=1,
                      stride=stride,
@@ -85,7 +103,7 @@ class ResNetV2(nn.Module):
         # pylint: disable=line-too-long
         self.root = nn.Sequential(
             OrderedDict([('conv',
-                          layers.StdConv2d(3,
+                          StdConv2d(3,
                                     width,
                                     kernel_size=7,
                                     stride=2,

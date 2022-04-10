@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Network Compression')
     # Training Hyperparameters
     training_args = parser.add_argument_group('training')
-    training_args.add_argument('--dataset', type=str, default='cifar100',
+    training_args.add_argument('--dataset', type=str, default='mnist',
                         choices=['mnist','cifar10','cifar100','tiny-imagenet','imagenet'],
                         help='dataset (default: mnist)')
     training_args.add_argument('--dataset-length', type=int, default=None,
@@ -28,8 +28,6 @@ if __name__ == '__main__':
                         help='model architecture (default: fc)')
     training_args.add_argument('--model-class', type=str, default='transformer', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
                         help='model class (default: default)')
-    training_args.add_argument('--dense-classifier', type=bool, default=False,
-                        help='ensure last layer of model is dense (default: False)')
     training_args.add_argument('--pretrained', type=bool, default=False,
                         help='load pretrained weights (default: False)')
     training_args.add_argument('--optimizer', type=str, default='adam', choices=['sgd','momentum','adam','rms'],
@@ -53,14 +51,11 @@ if __name__ == '__main__':
     training_args.add_argument('--weight-decay', type=float, default=0.0,
                         help='weight decay (default: 0.0)')
     training_args.add_argument('--patch-size', type=int, default=16,
-                               help='patch size for ViT models')
+                        help='patch size for ViT models')
     training_args.add_argument('--image-size', type=int, default=None,
-                               help="Size of the input image")
+                        help="Size of the input image")
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
-    pruning_args.add_argument('--pruner', type=str, default='synflow',
-                        choices=['rand','mag','snip','grasp','synflow'],
-                        help='prune strategy (default: rand)')
     pruning_args.add_argument('--compression', type=float, default=1.0,
                         help='quotient of prunable non-zero prunable parameters before and after pruning (default: 1.0)')
     pruning_args.add_argument('--prune-epochs', type=int, default=1,

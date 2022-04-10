@@ -7,6 +7,7 @@ from Utils import generator
 from Utils import metrics
 from train import *
 from prune import *
+from Pruners import synflow
 import sam.sam as sam
 
 def run(args):
@@ -71,9 +72,9 @@ def run(args):
                                 test_loader, device, args.pre_epochs, args.verbose)
 
                 # Prune Model
-                pruner = load.pruner(args.pruner)(generator.masked_parameters(model, args.prune_bias, args.prune_batchnorm, args.prune_residual))
-                sparsity = (10**(-float(compression)))**((l + 1) / level)
-                prune_loop(model, loss, pruner, prune_loader, device, sparsity,
+                sparsity = (10 ** (-float(compression))) ** ((l + 1) / level)
+                pruner = synflow.SynFlow(amount=sparsity)
+                prune_loop(model, pruner, prune_loader, device, sparsity,
                            args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
 
                 # Reset Model's Weights

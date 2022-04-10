@@ -7,12 +7,22 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from Layers import layers
 from .utils import (get_width_and_height_from_size, load_pretrained_weights,
                     get_model_params)
 
 VALID_MODELS = ('ViT-Ti', 'ViT-S_32', 'ViT-S_16', 'ViT-S_14', 'ViT-S_8', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16')
 
+def weight_standardize(w, dim, eps):
+    """Subtracts mean and divides by standard deviation."""
+    w = w - torch.mean(w, dim=dim)
+    w = w / (torch.std(w, dim=dim) + eps)
+    return w
+
+class StdConv2d(nn.Conv2d):
+    def forward(self, x):
+        w = weight_standardize(self.weight, [0, 1, 2], 1e-5)
+        return F.conv2d(x, w, self.bias, self.stride, self.padding,
+                        self.dilation, self.groups)
 
 class PositionEmbs(nn.Module):
     def __init__(self, num_patches, emb_dim, dropout_rate=0.1):
@@ -32,6 +42,17 @@ class PositionEmbs(nn.Module):
 
         return out
 
+class LinearGeneral(nn.Module):
+    def __init__(self, in_dim=(768, ), feat_dim=(12, 64)):
+        super(LinearGeneral, self).__init__()
+
+        self.weight = nn.Parameter(torch.randn(*in_dim, *feat_dim))
+        self.bias = nn.Parameter(torch.zeros(*feat_dim))
+
+    def forward(self, x, dims):
+        a = torch.tensordot(x, self.weight, dims=dims) + self.bias
+        return a
+
 
 class MlpBlock(nn.Module):
     """ Transformer Feed-Forward Block """
@@ -39,8 +60,8 @@ class MlpBlock(nn.Module):
         super(MlpBlock, self).__init__()
 
         # init layers
-        self.fc1 = layers.Linear(in_dim, mlp_dim)
-        self.fc2 = layers.Linear(mlp_dim, out_dim)
+        self.fc1 = nn.Linear(in_dim, mlp_dim)
+        self.fc2 = nn.Linear(mlp_dim, out_dim)
         self.act = nn.GELU()
         if dropout_rate > 0.0:
             self.dropout1 = nn.Dropout(dropout_rate)
@@ -68,10 +89,10 @@ class SelfAttention(nn.Module):
         self.head_dim = in_dim // heads
         self.scale = self.head_dim**0.5
 
-        self.query = layers.LinearGeneral((in_dim, ), (self.heads, self.head_dim))
-        self.key = layers.LinearGeneral((in_dim, ), (self.heads, self.head_dim))
-        self.value = layers.LinearGeneral((in_dim, ), (self.heads, self.head_dim))
-        self.out = layers.LinearGeneral((self.heads, self.head_dim), (in_dim, ))
+        self.query = LinearGeneral((in_dim, ), (self.heads, self.head_dim))
+        self.key = LinearGeneral((in_dim, ), (self.heads, self.head_dim))
+        self.value = LinearGeneral((in_dim, ), (self.heads, self.head_dim))
+        self.out = LinearGeneral((self.heads, self.head_dim), (in_dim, ))
 
         if dropout_rate > 0:
             self.dropout = nn.Dropout(dropout_rate)
@@ -108,7 +129,7 @@ class EncoderBlock(nn.Module):
                  attn_dropout_rate=0.1):
         super(EncoderBlock, self).__init__()
 
-        self.norm1 = layers.LayerNorm(in_dim)
+        self.norm1 = nn.LayerNorm(in_dim)
         self.attn = SelfAttention(in_dim,
                                   heads=num_heads,
                                   dropout_rate=attn_dropout_rate)
@@ -116,7 +137,7 @@ class EncoderBlock(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         else:
             self.dropout = None
-        self.norm2 = layers.LayerNorm(in_dim)
+        self.norm2 = nn.LayerNorm(in_dim)
         self.mlp = MlpBlock(in_dim, mlp_dim, in_dim, dropout_rate)
 
     def forward(self, x):
@@ -155,7 +176,7 @@ class Encoder(nn.Module):
             layer = EncoderBlock(in_dim, mlp_dim, num_heads, dropout_rate,
                                  attn_dropout_rate)
             self.encoder_layers.append(layer)
-        self.norm = layers.LayerNorm(in_dim)
+        self.norm = nn.LayerNorm(in_dim)
 
     def forward(self, x):
 
@@ -176,18 +197,18 @@ class VisionTransformer(nn.Module):
         References:
             [1] https://arxiv.org/abs/2010.11929 (An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale)
     """
-    def __init__(self, dense_classifier=True, params=None):
+    def __init__(self, params=None):
         super(VisionTransformer, self).__init__()
         self._params = params
 
         if self._params.resnet:
             self.resnet = self._params.resnet()
-            self.embedding = layers.Conv2d(self.resnet.width * 16,
+            self.embedding = nn.Conv2d(self.resnet.width * 16,
                                        self._params.emb_dim,
                                        kernel_size=1,
                                        stride=1)
         else:
-            self.embedding = layers.Conv2d(3,
+            self.embedding = nn.Conv2d(3,
                                        self._params.emb_dim,
                                        kernel_size=self.patch_size,
                                        stride=self.patch_size)
@@ -205,11 +226,7 @@ class VisionTransformer(nn.Module):
             attn_dropout_rate=self._params.attn_dropout_rate)
 
         # classfier
-        if dense_classifier:
-            self.classifier = nn.Linear(self._params.emb_dim,
-                                            self._params.num_classes)
-        else:
-            self.classifier = layers.Linear(self._params.emb_dim,
+        self.classifier = nn.Linear(self._params.emb_dim,
                                             self._params.num_classes)
 
     @property
@@ -334,14 +351,14 @@ class VisionTransformer(nn.Module):
         """
         if in_channels != 3:
             if hasattr(self, 'resnet'):
-                self.resnet.root['conv'] = layers.StdConv2d(in_channels,
+                self.resnet.root['conv'] = StdConv2d(in_channels,
                                                      self.resnet.width,
                                                      kernel_size=7,
                                                      stride=2,
                                                      bias=False,
                                                      padding=3)
             else:
-                self.embedding = layers.Conv2d(in_channels,
+                self.embedding = nn.Conv2d(in_channels,
                                            self._params.emb_dim,
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)

@@ -141,3 +141,7 @@ hyperopt/logs/*.txt
 Data/
 
 # experiments
+Results/*
+
+# pycharm files
+.idea/

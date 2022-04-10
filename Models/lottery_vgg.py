@@ -4,17 +4,16 @@
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from Layers import layers
 
 class ConvModule(nn.Module):
     """A single convolutional module in a VGG network."""
 
     def __init__(self, in_filters, out_filters):
         super(ConvModule, self).__init__()
-        self.conv = layers.Conv2d(in_filters, out_filters, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(in_filters, out_filters, kernel_size=3, padding=1)
 
     def forward(self, x):
         return F.relu(self.conv(x))
@@ -24,8 +23,8 @@ class ConvBNModule(nn.Module):
 
     def __init__(self, in_filters, out_filters):
         super(ConvBNModule, self).__init__()
-        self.conv = layers.Conv2d(in_filters, out_filters, kernel_size=3, padding=1)
-        self.bn = layers.BatchNorm2d(out_filters)
+        self.conv = nn.Conv2d(in_filters, out_filters, kernel_size=3, padding=1)
+        self.bn = nn.BatchNorm2d(out_filters)
 
     def forward(self, x):
         return F.relu(self.bn(self.conv(x)))
@@ -33,7 +32,7 @@ class ConvBNModule(nn.Module):
 class VGG(nn.Module):
     """A VGG-style neural network designed for CIFAR-10."""
 
-    def __init__(self, plan, conv, num_classes=10, dense_classifier=False):
+    def __init__(self, plan, conv, num_classes=10):
         super(VGG, self).__init__()
         layer_list = []
         filters = 3
@@ -47,9 +46,7 @@ class VGG(nn.Module):
 
         self.layers = nn.Sequential(*layer_list)        
 
-        self.fc = layers.Linear(512, num_classes)
-        if dense_classifier:
-            self.fc = nn.Linear(512, num_classes)
+        self.fc = nn.Linear(512, num_classes)
 
         self._initialize_weights()
 
@@ -62,11 +59,11 @@ class VGG(nn.Module):
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, (layers.Linear, nn.Linear, layers.Conv2d)):
+            if isinstance(m, (nn.Linear, nn.Linear, nn.Conv2d)):
                 nn.init.kaiming_normal_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, layers.BatchNorm2d):
+            elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
@@ -83,8 +80,8 @@ def _plan(num):
         raise ValueError('Unknown VGG model: {}'.format(num))
     return plan
 
-def _vgg(arch, plan, conv, num_classes, dense_classifier, pretrained):
-    model = VGG(plan, conv, num_classes, dense_classifier)
+def _vgg(arch, plan, conv, num_classes, pretrained):
+    model = VGG(plan, conv, num_classes)
     if pretrained:
         pretrained_path = 'Models/pretrained/{}-lottery.pt'.format(arch)
         pretrained_dict = torch.load(pretrained_path)
@@ -93,34 +90,34 @@ def _vgg(arch, plan, conv, num_classes, dense_classifier, pretrained):
         model.load_state_dict(model_dict)
     return model
 
-def vgg11(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg11(input_shape, num_classes, pretrained=False):
     plan = _plan(11)
-    return _vgg('vgg11_bn', plan, ConvModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg11_bn', plan, ConvModule, num_classes, pretrained)
 
-def vgg11_bn(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg11_bn(input_shape, num_classes, pretrained=False):
     plan = _plan(11)
-    return _vgg('vgg11_bn', plan, ConvBNModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg11_bn', plan, ConvBNModule, num_classes, pretrained)
 
-def vgg13(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg13(input_shape, num_classes, pretrained=False):
     plan = _plan(13)
-    return _vgg('vgg13_bn', plan, ConvModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg13_bn', plan, ConvModule, num_classes, pretrained)
 
-def vgg13_bn(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg13_bn(input_shape, num_classes, pretrained=False):
     plan = _plan(13)
-    return _vgg('vgg13_bn', plan, ConvBNModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg13_bn', plan, ConvBNModule, num_classes, pretrained)
 
-def vgg16(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg16(input_shape, num_classes, pretrained=False):
     plan = _plan(16)
-    return _vgg('vgg16_bn', plan, ConvModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg16_bn', plan, ConvModule, num_classes, pretrained)
 
-def vgg16_bn(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg16_bn(input_shape, num_classes, pretrained=False):
     plan = _plan(16)
-    return _vgg('vgg16_bn', plan, ConvBNModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg16_bn', plan, ConvBNModule, num_classes, pretrained)
 
-def vgg19(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg19(input_shape, num_classes, pretrained=False):
     plan = _plan(19)
-    return _vgg('vgg19_bn', plan, ConvModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg19_bn', plan, ConvModule, num_classes, pretrained)
 
-def vgg19_bn(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def vgg19_bn(input_shape, num_classes, pretrained=False):
     plan = _plan(19)
-    return _vgg('vgg19_bn', plan, ConvBNModule, num_classes, dense_classifier, pretrained)
+    return _vgg('vgg19_bn', plan, ConvBNModule, num_classes, pretrained)

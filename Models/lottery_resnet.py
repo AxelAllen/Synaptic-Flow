@@ -4,10 +4,9 @@
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from Layers import layers
 
 
 class Block(nn.Module):
@@ -17,19 +16,19 @@ class Block(nn.Module):
         super(Block, self).__init__()
 
         stride = 2 if downsample else 1
-        self.conv1 = layers.Conv2d(f_in, f_out, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = layers.BatchNorm2d(f_out)
-        self.conv2 = layers.Conv2d(f_out, f_out, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = layers.BatchNorm2d(f_out)
+        self.conv1 = nn.Conv2d(f_in, f_out, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(f_out)
+        self.conv2 = nn.Conv2d(f_out, f_out, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(f_out)
 
         # No parameters for shortcut connections.
         if downsample or f_in != f_out:
             self.shortcut = nn.Sequential(
-                layers.Conv2d(f_in, f_out, kernel_size=1, stride=2, bias=False),
-                layers.BatchNorm2d(f_out)
+                nn.Conv2d(f_in, f_out, kernel_size=1, stride=2, bias=False),
+                nn.BatchNorm2d(f_out)
             )
         else:
-            self.shortcut = layers.Identity2d(f_in)
+            self.shortcut = nn.Identity2d(f_in)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -41,13 +40,13 @@ class Block(nn.Module):
 class ResNet(nn.Module):
     """A residual neural network as originally designed for CIFAR-10."""
     
-    def __init__(self, plan, num_classes, dense_classifier):
+    def __init__(self, plan, num_classes):
         super(ResNet, self).__init__()
 
         # Initial convolution.
         current_filters = plan[0][0]
-        self.conv = layers.Conv2d(3, current_filters, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn = layers.BatchNorm2d(current_filters)
+        self.conv = nn.Conv2d(3, current_filters, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn = nn.BatchNorm2d(current_filters)
 
         # The subsequent blocks of the ResNet.
         blocks = []
@@ -59,9 +58,7 @@ class ResNet(nn.Module):
 
         self.blocks = nn.Sequential(*blocks)
 
-        self.fc = layers.Linear(plan[-1][0], num_classes)
-        if dense_classifier:
-            self.fc = nn.Linear(plan[-1][0], num_classes)
+        self.fc = nn.Linear(plan[-1][0], num_classes)
 
         self._initialize_weights()
 
@@ -76,11 +73,11 @@ class ResNet(nn.Module):
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, (layers.Linear, nn.Linear, layers.Conv2d)):
+            if isinstance(m, (nn.Linear, nn.Linear, nn.Conv2d)):
                 nn.init.kaiming_normal_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, layers.BatchNorm2d):
+            elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
@@ -110,8 +107,8 @@ def _plan(D, W):
 
     return plan
 
-def _resnet(arch, plan, num_classes, dense_classifier, pretrained):
-    model = ResNet(plan, num_classes, dense_classifier)
+def _resnet(arch, plan, num_classes, pretrained):
+    model = ResNet(plan, num_classes)
     if pretrained:
         pretrained_path = 'Models/pretrained/{}-lottery.pt'.format(arch)
         pretrained_dict = torch.load(pretrained_path)
@@ -122,51 +119,51 @@ def _resnet(arch, plan, num_classes, dense_classifier, pretrained):
 
 
 # ResNet Models
-def resnet20(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet20(input_shape, num_classes, pretrained=False):
     plan = _plan(20, 16)
-    return _resnet('resnet20', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet20', plan, num_classes, pretrained)
 
-def resnet32(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet32(input_shape, num_classes, pretrained=False):
     plan = _plan(32, 16)
-    return _resnet('resnet32', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet32', plan, num_classes, pretrained)
 
-def resnet44(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet44(input_shape, num_classes, pretrained=False):
     plan = _plan(44, 16)
-    return _resnet('resnet44', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet44', plan, num_classes, pretrained)
 
-def resnet56(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet56(input_shape, num_classes, pretrained=False):
     plan = _plan(56, 16)
-    return _resnet('resnet56', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet56', plan, num_classes, pretrained)
 
-def resnet110(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet110(input_shape, num_classes, pretrained=False):
     plan = _plan(110, 16)
-    return _resnet('resnet110', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet110', plan, num_classes, pretrained)
 
-def resnet1202(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet1202(input_shape, num_classes, pretrained=False):
     plan = _plan(1202, 16)
-    return _resnet('resnet1202', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet1202', plan, num_classes, pretrained)
 
 # Wide ResNet Models
-def wide_resnet20(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet20(input_shape, num_classes, pretrained=False):
     plan = _plan(20, 32)
-    return _resnet('wide_resnet20', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet20', plan, num_classes, pretrained)
 
-def wide_resnet32(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet32(input_shape, num_classes, pretrained=False):
     plan = _plan(32, 32)
-    return _resnet('wide_resnet32', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet32', plan, num_classes, pretrained)
 
-def wide_resnet44(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet44(input_shape, num_classes, pretrained=False):
     plan = _plan(44, 32)
-    return _resnet('wide_resnet44', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet44', plan, num_classes, pretrained)
 
-def wide_resnet56(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet56(input_shape, num_classes, pretrained=False):
     plan = _plan(56, 32)
-    return _resnet('wide_resnet56', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet56', plan, num_classes, pretrained)
 
-def wide_resnet110(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet110(input_shape, num_classes, pretrained=False):
     plan = _plan(110, 32)
-    return _resnet('wide_resnet110', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet110', plan, num_classes, pretrained)
 
-def wide_resnet1202(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet1202(input_shape, num_classes, pretrained=False):
     plan = _plan(1202, 32)
-    return _resnet('wide_resnet1202', plan, num_classes, dense_classifier, pretrained)
+    return _resnet('wide_resnet1202', plan, num_classes, pretrained)

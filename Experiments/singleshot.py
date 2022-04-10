@@ -5,6 +5,7 @@ import torch.nn as nn
 from Utils import load
 from Utils import generator
 from Utils import metrics
+from Pruners import synflow
 from train import *
 from prune import *
 import sam.sam as sam
@@ -44,7 +45,7 @@ def run(args):
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
                                                          gamma=args.lr_drop_rate)
     else:
-        print(f"Sharpness Aware Minimization disabled. Using base optimizer {args.optimizer}")
+        print(f"Sharpness Aware Minimization disabled. Using base optimizer <{args.optimizer}>")
         optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
@@ -56,9 +57,9 @@ def run(args):
 
     ## Prune ##
     print('Pruning with {} for {} epochs.'.format(args.pruner, args.prune_epochs))
-    pruner = load.pruner(args.pruner)(generator.masked_parameters(model, args.prune_bias, args.prune_batchnorm, args.prune_residual))
-    sparsity = 10**(-float(args.compression))
-    prune_loop(model, loss, pruner, prune_loader, device, sparsity, 
+    sparsity = 10 ** (-float(args.compression))
+    pruner = synflow.SynFlow(amount=sparsity)
+    prune_result = prune_loop(model, pruner, prune_loader, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
 
     
@@ -74,9 +75,6 @@ def run(args):
     ## Display Results ##
     frames = [pre_result.head(1), pre_result.tail(1), post_result.head(1), post_result.tail(1)]
     train_result = pd.concat(frames, keys=['Init.', 'Pre-Prune', 'Post-Prune', 'Final'])
-    prune_result = metrics.summary(model, 
-                                   pruner.scores,
-                                   lambda p: generator.prunable(p, args.prune_batchnorm, args.prune_residual)) # metrics.flop(model, input_shape, device),
     total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
     possible_params = prune_result['size'].sum()
     # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())

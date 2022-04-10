@@ -1,5 +1,4 @@
 import torch
-import torch.multiprocessing as multiprocessing
 import numpy as np
 from torchvision import datasets, transforms
 import torch.optim as optim
@@ -11,7 +10,6 @@ from Models import tinyimagenet_resnet
 from Models import imagenet_vgg
 from Models import imagenet_resnet
 from Models import vit
-from Pruners import pruners
 from Utils import custom_datasets
 
 def device(gpu):
@@ -198,19 +196,8 @@ def model(model_architecture, model_class):
         'imagenet' : imagenet_models,
         'transformer' : transformer_models
     }
-    if model_class == 'imagenet':
-        print("WARNING: ImageNet models do not implement `dense_classifier`.")
     return models[model_class][model_architecture]
 
-def pruner(method):
-    prune_methods = {
-        'rand' : pruners.Rand,
-        'mag' : pruners.Mag,
-        'snip' : pruners.SNIP,
-        'grasp': pruners.GraSP,
-        'synflow' : pruners.SynFlow,
-    }
-    return prune_methods[method]
 
 def optimizer(optimizer):
     optimizers = {

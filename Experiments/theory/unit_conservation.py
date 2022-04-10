@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from Layers import layers
 from Utils import load
 from Utils import generator
 from train import *
@@ -40,7 +39,7 @@ def run(args):
         in_scores = []
         out_scores = []
         for name, module in model.named_modules():
-            if (isinstance(module, layers.Linear) and compute_linear):
+            if (isinstance(module, nn.Linear) and compute_linear):
                 W = module.weight
                 b = module.bias
 
@@ -49,7 +48,7 @@ def run(args):
 
                 in_scores.append(W_score.sum(axis=1) + b_score)
                 out_scores.append(W_score.sum(axis=0))
-            if isinstance(module, layers.Conv2d):
+            if isinstance(module, nn.Conv2d):
                 W = module.weight
                 W_score = scores[id(W)].detach().cpu().numpy()
                 in_score = W_score.sum(axis=(1,2,3)) 

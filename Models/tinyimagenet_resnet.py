@@ -12,7 +12,33 @@
 
 import torch
 import torch.nn as nn
-from Layers import layers
+
+class Identity1d(nn.Module):
+    def __init__(self, num_features):
+        super(Identity1d, self).__init__()
+        self.num_features = num_features
+        self.weight = nn.Parameter(torch.Tensor(num_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.ones_(self.weight)
+
+    def forward(self, input):
+        return input * self.weight
+
+
+class Identity2d(nn.Module):
+    def __init__(self, num_features):
+        super(Identity2d, self).__init__()
+        self.num_features = num_features
+        self.weight = nn.Parameter(torch.Tensor(num_features, 1, 1))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.ones_(self.weight)
+
+    def forward(self, input):
+        return input * self.weight
 
 class BasicBlock(nn.Module):
     """Basic Block for resnet 18 and resnet 34
@@ -30,22 +56,22 @@ class BasicBlock(nn.Module):
 
         #residual function
         self.residual_function = nn.Sequential(
-            layers.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
-            layers.BatchNorm2d(out_channels),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-            layers.Conv2d(out_channels, out_channels * BasicBlock.expansion, kernel_size=3, padding=1, bias=False),
-            layers.BatchNorm2d(out_channels * BasicBlock.expansion)
+            nn.Conv2d(out_channels, out_channels * BasicBlock.expansion, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels * BasicBlock.expansion)
         )
 
         #shortcut
-        self.shortcut = layers.Identity2d(in_channels)
+        self.shortcut = Identity2d(in_channels)
 
         #the shortcut output dimension is not the same with residual function
         #use 1*1 convolution to match the dimension
         if stride != 1 or in_channels != BasicBlock.expansion * out_channels:
             self.shortcut = nn.Sequential(
-                layers.Conv2d(in_channels, out_channels * BasicBlock.expansion, kernel_size=1, stride=stride, bias=False),
-                layers.BatchNorm2d(out_channels * BasicBlock.expansion)
+                nn.Conv2d(in_channels, out_channels * BasicBlock.expansion, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels * BasicBlock.expansion)
             )
         
     def forward(self, x):
@@ -60,22 +86,22 @@ class BottleNeck(nn.Module):
         super().__init__()
         width = int(out_channels * (base_width / 64.))
         self.residual_function = nn.Sequential(
-            layers.Conv2d(in_channels, width, kernel_size=1, bias=False),
-            layers.BatchNorm2d(width),
+            nn.Conv2d(in_channels, width, kernel_size=1, bias=False),
+            nn.BatchNorm2d(width),
             nn.ReLU(inplace=True),
-            layers.Conv2d(width, width, stride=stride, kernel_size=3, padding=1, bias=False),
-            layers.BatchNorm2d(width),
+            nn.Conv2d(width, width, stride=stride, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(width),
             nn.ReLU(inplace=True),
-            layers.Conv2d(width, out_channels * BottleNeck.expansion, kernel_size=1, bias=False),
-            layers.BatchNorm2d(out_channels * BottleNeck.expansion),
+            nn.Conv2d(width, out_channels * BottleNeck.expansion, kernel_size=1, bias=False),
+            nn.BatchNorm2d(out_channels * BottleNeck.expansion),
         )
 
-        self.shortcut = layers.Identity2d(in_channels)
+        self.shortcut = Identity2d(in_channels)
 
         if stride != 1 or in_channels != out_channels * BottleNeck.expansion:
             self.shortcut = nn.Sequential(
-                layers.Conv2d(in_channels, out_channels * BottleNeck.expansion, stride=stride, kernel_size=1, bias=False),
-                layers.BatchNorm2d(out_channels * BottleNeck.expansion)
+                nn.Conv2d(in_channels, out_channels * BottleNeck.expansion, stride=stride, kernel_size=1, bias=False),
+                nn.BatchNorm2d(out_channels * BottleNeck.expansion)
             )
         
     def forward(self, x):
@@ -83,14 +109,14 @@ class BottleNeck(nn.Module):
     
 class ResNet(nn.Module):
 
-    def __init__(self, block, num_block, base_width, num_classes=200, dense_classifier=False):
+    def __init__(self, block, num_block, base_width, num_classes=200):
         super().__init__()
 
         self.in_channels = 64
 
         self.conv1 = nn.Sequential(
-            layers.Conv2d(3, 64, kernel_size=3, padding=1, bias=False),
-            layers.BatchNorm2d(64),
+            nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True))
         #we use a different inputsize than the original paper
         #so conv2_x's stride is 1
@@ -99,16 +125,14 @@ class ResNet(nn.Module):
         self.conv4_x = self._make_layer(block, 256, num_block[2], 2, base_width)
         self.conv5_x = self._make_layer(block, 512, num_block[3], 2, base_width)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = layers.Linear(512 * block.expansion, num_classes)
-        if dense_classifier:
-            self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
         self._initialize_weights()
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, layers.Conv2d):
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, (layers.BatchNorm2d, nn.GroupNorm)):
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
@@ -149,8 +173,8 @@ class ResNet(nn.Module):
 
         return output 
 
-def _resnet(arch, block, num_block, base_width, num_classes, dense_classifier, pretrained):
-    model = ResNet(block, num_block, base_width, num_classes, dense_classifier)
+def _resnet(arch, block, num_block, base_width, num_classes, pretrained):
+    model = ResNet(block, num_block, base_width, num_classes)
     if pretrained:
         pretrained_path = 'Models/pretrained/{}-cifar{}.pt'.format(arch, num_classes)
         pretrained_dict = torch.load(pretrained_path)
@@ -159,57 +183,57 @@ def _resnet(arch, block, num_block, base_width, num_classes, dense_classifier, p
         model.load_state_dict(model_dict)
     return model
 
-def resnet18(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet18(input_shape, num_classes, pretrained=False):
     """ return a ResNet 18 object
     """
-    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], 64, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], 64, num_classes, pretrained)
 
-def resnet34(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet34(input_shape, num_classes, pretrained=False):
     """ return a ResNet 34 object
     """
-    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], 64, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], 64, num_classes, pretrained)
 
-def resnet50(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet50(input_shape, num_classes, pretrained=False):
     """ return a ResNet 50 object
     """
-    return _resnet('resnet50', BottleNeck, [3, 4, 6, 3], 64, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet50', BottleNeck, [3, 4, 6, 3], 64, num_classes, pretrained)
 
-def resnet101(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet101(input_shape, num_classes, pretrained=False):
     """ return a ResNet 101 object
     """
-    return _resnet('resnet101', BottleNeck, [3, 4, 23, 3], 64, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet101', BottleNeck, [3, 4, 23, 3], 64, num_classes, pretrained)
 
-def resnet152(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def resnet152(input_shape, num_classes, pretrained=False):
     """ return a ResNet 152 object
     """
-    return _resnet('resnet152', BottleNeck, [3, 8, 36, 3], 64, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet152', BottleNeck, [3, 8, 36, 3], 64, num_classes, pretrained)
 
 
 
-def wide_resnet18(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet18(input_shape, num_classes, pretrained=False):
     """ return a ResNet 18 object
     """
-    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], 64 * 2, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], 64 * 2, num_classes, pretrained)
 
-def wide_resnet34(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet34(input_shape, num_classes, pretrained=False):
     """ return a ResNet 34 object
     """
-    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], 64 * 2, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], 64 * 2, num_classes, pretrained)
 
-def wide_resnet50(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet50(input_shape, num_classes, pretrained=False):
     """ return a ResNet 50 object
     """
-    return _resnet('resnet50', BottleNeck, [3, 4, 6, 3], 64 * 2, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet50', BottleNeck, [3, 4, 6, 3], 64 * 2, num_classes, pretrained)
 
-def wide_resnet101(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet101(input_shape, num_classes, pretrained=False):
     """ return a ResNet 101 object
     """
-    return _resnet('resnet101', BottleNeck, [3, 4, 23, 3], 64 * 2, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet101', BottleNeck, [3, 4, 23, 3], 64 * 2, num_classes, pretrained)
 
-def wide_resnet152(input_shape, num_classes, dense_classifier=False, pretrained=False):
+def wide_resnet152(input_shape, num_classes, pretrained=False):
     """ return a ResNet 152 object
     """
-    return _resnet('resnet152', BottleNeck, [3, 8, 36, 3], 64 * 2, num_classes, dense_classifier, pretrained)
+    return _resnet('resnet152', BottleNeck, [3, 8, 36, 3], 64 * 2, num_classes, pretrained)
 
 
 

@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 from .utils import load_state_dict_from_url
-from Layers import layers
 
 
 __all__ = [
@@ -31,13 +30,13 @@ class VGG(nn.Module):
         self.features = features
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
-            layers.Linear(512 * 7 * 7, 4096),
+            nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(True),
             nn.Dropout(),
-            layers.Linear(4096, 4096),
+            nn.Linear(4096, 4096),
             nn.ReLU(True),
             nn.Dropout(),
-            layers.Linear(4096, num_classes),
+            nn.Linear(4096, num_classes),
         )
         if init_weights:
             self._initialize_weights()
@@ -51,14 +50,14 @@ class VGG(nn.Module):
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, layers.Conv2d):
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, layers.BatchNorm2d):
+            elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, layers.Linear):
+            elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
 
@@ -70,9 +69,9 @@ def make_layers(cfg, batch_norm=False):
         if v == 'M':
             layer_list += [nn.MaxPool2d(kernel_size=2, stride=2)]
         else:
-            conv2d = layers.Conv2d(in_channels, v, kernel_size=3, padding=1)
+            conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layer_list += [conv2d, layers.BatchNorm2d(v), nn.ReLU(inplace=True)]
+                layer_list += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
             else:
                 layer_list += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
@@ -100,7 +99,7 @@ def _vgg(arch, cfg, batch_norm, pretrained, progress, **kwargs):
     return model
 
 
-def vgg11(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg11(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 11-layer model (configuration "A") from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -111,7 +110,7 @@ def vgg11(input_shape, num_classes, dense_classifier=False, pretrained=False, pr
     return _vgg('vgg11', 'A', False, pretrained, progress, **kwargs)
 
 
-def vgg11_bn(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg11_bn(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 11-layer model (configuration "A") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -122,7 +121,7 @@ def vgg11_bn(input_shape, num_classes, dense_classifier=False, pretrained=False,
     return _vgg('vgg11_bn', 'A', True, pretrained, progress, **kwargs)
 
 
-def vgg13(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg13(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 13-layer model (configuration "B")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -133,7 +132,7 @@ def vgg13(input_shape, num_classes, dense_classifier=False, pretrained=False, pr
     return _vgg('vgg13', 'B', False, pretrained, progress, **kwargs)
 
 
-def vgg13_bn(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg13_bn(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 13-layer model (configuration "B") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -144,7 +143,7 @@ def vgg13_bn(input_shape, num_classes, dense_classifier=False, pretrained=False,
     return _vgg('vgg13_bn', 'B', True, pretrained, progress, **kwargs)
 
 
-def vgg16(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg16(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -155,7 +154,7 @@ def vgg16(input_shape, num_classes, dense_classifier=False, pretrained=False, pr
     return _vgg('vgg16', 'D', False, pretrained, progress, **kwargs)
 
 
-def vgg16_bn(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg16_bn(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 16-layer model (configuration "D") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -166,7 +165,7 @@ def vgg16_bn(input_shape, num_classes, dense_classifier=False, pretrained=False,
     return _vgg('vgg16_bn', 'D', True, pretrained, progress, **kwargs)
 
 
-def vgg19(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg19(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 
@@ -177,7 +176,7 @@ def vgg19(input_shape, num_classes, dense_classifier=False, pretrained=False, pr
     return _vgg('vgg19', 'E', False, pretrained, progress, **kwargs)
 
 
-def vgg19_bn(input_shape, num_classes, dense_classifier=False, pretrained=False, progress=True, **kwargs):
+def vgg19_bn(input_shape, num_classes, pretrained=False, progress=True, **kwargs):
     r"""VGG 19-layer model (configuration 'E') with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_
 

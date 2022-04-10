@@ -2,118 +2,48 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-from prune import * 
-from Layers import layers
-from Models.vit import VisionTransformer, PositionEmbs, MlpBlock, SelfAttention, EncoderBlock, Encoder
+from prune import *
 
-_ignore_modules = [PositionEmbs, MlpBlock, SelfAttention, EncoderBlock, Encoder, nn.Dropout]
+def stats(model):
+    r"""Returns remaining and total number of prunable parameters.
+    """
+    zero_params, total_params = 0, 0
+    for module in model.modules():
+        zero_params += float(torch.sum(module.weight == 0))
+        total_params += float(module.weight.nelement())
+    sparsity = zero_params / total_params
+    remaining_params = total_params - zero_params
+    return sparsity, remaining_params, total_params
 
-def summary(model, scores, prunable, flops=None):
+def summary(model, scores, prunable):
     r"""Summary of compression results for a model.
     """
     rows = []
     for name, module in model.named_modules():
-        for pname, param in module.named_parameters(recurse=False):
-            pruned = prunable(module) and id(param) in scores.keys()
-            if pruned:
-                sparsity = getattr(module, pname+'_mask').detach().cpu().numpy().mean()
-                score = scores[id(param)].detach().cpu().numpy()
+        for pname, param in module.named_parameters():
+            zero_params = float(torch.sum(param == 0))
+            total_params = float(param.nelement())
+            sparsity = zero_params / total_params
+            if prunable(module):
+                pruned = True
+                score = scores[(module, name)]
             else:
-                sparsity = 1.0
-                score = np.zeros(1)
+                pruned = False
+                score = 1.0
             shape = param.detach().cpu().numpy().shape
-            if flops is not None:
-                flop = flops[name][pname]
             score_mean = score.mean()
             score_var = score.var()
             score_sum = score.sum()
             score_abs_mean = np.abs(score).mean()
             score_abs_var  = np.abs(score).var()
             score_abs_sum  = np.abs(score).sum()
-            if flops is not None:
-                rows.append([name, pname, sparsity, np.prod(shape), shape, flop,
-                         score_mean, score_var, score_sum, 
-                         score_abs_mean, score_abs_var, score_abs_sum, 
-                         pruned])
-            else:
-                rows.append([name, pname, sparsity, np.prod(shape), shape,
-                             score_mean, score_var, score_sum,
-                             score_abs_mean, score_abs_var, score_abs_sum,
-                             pruned])
-    if flops is not None:
-        columns = ['module', 'param', 'sparsity', 'size', 'shape', 'flops', 'score mean', 'score variance',
+            rows.append([name, pname, sparsity, np.prod(shape), shape,
+                        score_mean, score_var, score_sum,
+                        score_abs_mean, score_abs_var, score_abs_sum,
+                        pruned])
+    columns = ['module', 'param', 'sparsity', 'size', 'shape', 'score mean', 'score variance',
                'score sum', 'score abs mean', 'score abs variance', 'score abs sum', 'prunable']
-    else:
-        columns = ['module', 'param', 'sparsity', 'size', 'shape', 'score mean', 'score variance',
-                   'score sum', 'score abs mean', 'score abs variance', 'score abs sum', 'prunable']
     return pd.DataFrame(rows, columns=columns)
-
-def flop(model, input_shape, device):
-
-    total = {}
-    def count_flops(name):
-        def hook(module, input, output):
-            flops = {}
-            if isinstance(module, layers.Linear) or isinstance(module, nn.Linear):
-                in_features = module.in_features
-                out_features = module.out_features
-                flops['weight'] = in_features * out_features
-                if module.bias is not None:
-                    flops['bias'] = out_features
-            elif isinstance(module, layers.LinearGeneral):
-                in_features = module.weight.shape[0] * module.weight.shape[1]
-                out_features = torch.flatten(torch.tensordot(input[0], module.weight, dims=([2], [0])), end_dim=-2).shape[0]
-                flops['weight'] = in_features * out_features
-                if module.bias is not None:
-                    flops['bias'] = module.bias.shape[0] * module.bias.shape[1]
-            elif isinstance(module, layers.Conv2d) or isinstance(module, nn.Conv2d):
-                in_channels = module.in_channels
-                out_channels = module.out_channels
-                kernel_size = int(np.prod(module.kernel_size))
-                output_size = output.size(2) * output.size(3)
-                flops['weight'] = in_channels * out_channels * kernel_size * output_size
-                if module.bias is not None:
-                    flops['bias'] = out_channels * output_size
-            elif isinstance(module, layers.BatchNorm1d) or isinstance(module, nn.BatchNorm1d):
-                if module.affine:
-                    flops['weight'] = module.num_features
-                    flops['bias'] = module.num_features
-            elif isinstance(module, layers.BatchNorm2d) or isinstance(module, nn.BatchNorm2d):
-                output_size = output.size(2) * output.size(3)
-                if module.affine:
-                    flops['weight'] = module.num_features * output_size
-                    flops['bias'] = module.num_features * output_size
-            elif isinstance(module, layers.LayerNorm) or isinstance(module, nn.LayerNorm):
-                if module.elementwise_affine:
-                    flops['weight'] = module.normalized_shape[0]
-                    flops['bias'] = module.normalized_shape[0]
-            elif isinstance(module, layers.Identity1d):
-                flops['weight'] = module.num_features
-            elif isinstance(module, layers.Identity2d):
-                output_size = output.size(2) * output.size(3)
-                flops['weight'] = module.num_features * output_size
-            elif hasattr(model, 'cls_token') and isinstance(module, nn.Parameter):
-                in_features = module.shape[2]
-                out_features = model.num_classes
-                flops['weight'] = in_features * out_features
-            elif hasattr(model, 'PositionEmbs') and hasattr(model.PositionEmbs, 'pos_embedding') and isinstance(module, nn.Parameter):
-                in_features = module.shape[1]-1
-                out_features = module.shape[2]
-                flops['weight'] = in_features * out_features
-            elif any(isinstance(module, mod) for mod in _ignore_modules):
-                flops['weight'] = 0
-                if hasattr(module, 'bias') and module.bias is not None:
-                    flops['bias'] = 0
-            total[name] = flops
-        return hook
-    
-    for name, module in model.named_modules():
-        module.register_forward_hook(count_flops(name))
-
-    input = torch.ones([1] + list(input_shape)).to(device)
-    model(input)
-
-    return total
 
 
 # def conservation(model, scores, batchnorm, residual):
