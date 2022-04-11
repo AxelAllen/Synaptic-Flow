@@ -30,6 +30,8 @@ if __name__ == '__main__':
                         help='model class (default: default)')
     training_args.add_argument('--pretrained', type=bool, default=False,
                         help='load pretrained weights (default: False)')
+    training_args.add_argument('--weights-path', type=str, default=None,
+                               help="Path to pretrained weights. If None, load from URL.")
     training_args.add_argument('--optimizer', type=str, default='adam', choices=['sgd','momentum','adam','rms'],
                         help='optimizer (default: adam)')
     training_args.add_argument('--sam', action='store_true',

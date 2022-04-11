@@ -145,3 +145,13 @@ Results/*
 
 # pycharm files
 .idea/
+
+# bash scripts
+*.sh
+
+# wandb files
+wandb/
+
+
+# other folders
+pretrained_weights/
