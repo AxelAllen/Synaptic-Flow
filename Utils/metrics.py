@@ -3,32 +3,39 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 from prune import *
+from Utils.generator import prunable
 
-def stats(model):
+def global_sparsity(model, prune_bias=False):
     r"""Returns remaining and total number of prunable parameters.
     """
     zero_params, total_params = 0, 0
-    for module in model.modules():
-        zero_params += float(torch.sum(module.weight == 0))
-        total_params += float(module.weight.nelement())
-    sparsity = zero_params / total_params
+    for module in filter(lambda p: prunable(p), model.modules()):
+        for pname, param in module.named_parameters():
+            if pname == "weight" or (pname == "bias" and prune_bias is True):
+                zero_params += float(torch.sum(param == 0.))
+                total_params += float(param.nelement())
+    sparsity = 1 - (zero_params / total_params)
     remaining_params = total_params - zero_params
-    return sparsity, remaining_params, total_params
+    if np.abs(remaining_params - total_params*sparsity) >= 5:
+        print("ERROR: {} prunable parameters remaining, expected {}".format(remaining_params, total_params*sparsity))
+        quit()
+    return sparsity
 
-def summary(model, scores, prunable):
+def summary(model, scores):
     r"""Summary of compression results for a model.
     """
     rows = []
-    for name, module in model.named_modules():
+    for name, module in filter(lambda p: prunable(p), model.named_modules()):
         for pname, param in module.named_parameters(recurse=False):
-            zero_params = float(torch.sum(param == 0))
-            total_params = float(param.nelement())
-            sparsity = zero_params / total_params
-            if prunable(module):
+            if prunable(param):
                 pruned = True
-                score = scores[(module, name)]
+                zero_params = float(torch.sum(param == 0))
+                total_params = float(param.nelement())
+                sparsity = zero_params / total_params
+                score = scores[(param, pname)]
             else:
                 pruned = False
+                sparsity = 1.0
                 score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
             score_mean = score.mean()

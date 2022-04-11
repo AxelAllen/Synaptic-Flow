@@ -1,14 +1,14 @@
 from tqdm import tqdm
 import torch
 import numpy as np
+import torch.nn.utils.prune as prune
 from Pruners.synflow import score, SynFlow
 from Utils.generator import prunable
-import torch.nn.utils.prune as prune
-from Utils.metrics import stats, summary
+from Utils.metrics import global_sparsity, summary
 
 
-def prune_loop(model, pruner, dataloader, device, sparsity, schedule, scope, epochs,
-               reinitialize=False, train_mode=False, shuffle=False, invert=False):
+def prune_loop(model, dataloader, device, sparsity, schedule, scope, epochs,
+               reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False):
     r"""Applies score mask loop iteratively to a final sparsity level.
     """
     # Set model to train or eval mode
@@ -19,35 +19,36 @@ def prune_loop(model, pruner, dataloader, device, sparsity, schedule, scope, epo
     importance_scores = None
     # Prune model
     for epoch in tqdm(range(epochs)):
-        importance_scores = score(model, dataloader, device)
+        importance_scores = score(model, dataloader, device, prune_bias)
         sparse = sparsity
         if schedule == 'exponential':
             sparse = sparsity**((epoch + 1) / epochs)
         elif schedule == 'linear':
             sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
         params = []
-        for name, module in model.named_modules():
-            if prunable(module):
-                params.append((module, name))
-        prune.global_unstructured(parameters=params, pruning_method=pruner, importance_scores=importance_scores,
-                                amount=sparse)
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                params.append((module, pname))
+        prune.global_unstructured(parameters=params, pruning_method=SynFlow, importance_scores=importance_scores,
+                                amount=sparse,)
 
     # make pruning permanent
-    for name, module in model.named_modules():
-        if prunable(module):
-            prune.remove(module, name)
+    for module in filter(lambda p: prunable(p), model.modules()):
+        if hasattr(module, 'weight'):
+            prune.remove(module, "weight")
+        if hasattr(module, "bias") and prune_bias is True:
+            prune.remove(module, "bias")
 
     # Reainitialize weights
     if reinitialize:
         model._initialize_weights()
 
     # Confirm sparsity level
-    global_sparsity, remaining_params, total_params = stats(model)
-    assert global_sparsity == sparsity
-    print(f"Global sparsity after pruning: {100 * global_sparsity}%")
-    if np.abs(remaining_params - total_params*sparsity) >= 5:
-        print("ERROR: {} prunable parameters remaining, expected {}".format(remaining_params, total_params*sparsity))
-        quit()
+    glob_sparsity = global_sparsity(model, prune_bias)
+    assert round(glob_sparsity, 2) == round(sparsity, 2)
+    print(f"Global sparsity after pruning: {round(100 * glob_sparsity, 2)}%")
 
-    summary_results = summary(model, importance_scores, lambda p: prunable(p))
+    summary_results = summary(model, importance_scores)
     return summary_results

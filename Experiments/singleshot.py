@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 from Utils import load
 from Utils import generator
-from Utils import metrics
 from Pruners import synflow
 from train import *
 from prune import *
@@ -35,7 +34,6 @@ def run(args):
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
-                                                         args.dense_classifier,
                                                          args.pretrained).to(device)
     loss = nn.CrossEntropyLoss()
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
@@ -56,10 +54,9 @@ def run(args):
                                  test_loader, device, args.pre_epochs, args.verbose)
 
     ## Prune ##
-    print('Pruning with {} for {} epochs.'.format(args.pruner, args.prune_epochs))
+    print('Pruning for {} epochs.'.format(args.prune_epochs))
     sparsity = 10 ** (-float(args.compression))
-    pruner = synflow.SynFlow(amount=sparsity)
-    prune_result = prune_loop(model, pruner, prune_loader, device, sparsity,
+    prune_result = prune_loop(model, prune_loader, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
 
     
