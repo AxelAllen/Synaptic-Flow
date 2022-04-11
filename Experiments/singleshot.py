@@ -30,7 +30,8 @@ def run(args):
                                                                     input_shape,
                                                                     args.patch_size,
                                                                     num_classes,
-                                                                    args.pretrained).to(device)
+                                                                    args.pretrained,
+                                                                    args.weights_path).to(device)
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
