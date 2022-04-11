@@ -25,16 +25,15 @@ def summary(model, scores):
     r"""Summary of compression results for a model.
     """
     rows = []
-    for name, module in filter(lambda p: prunable(p), model.named_modules()):
+    for name, module in model.named_modules():
         for pname, param in module.named_parameters(recurse=False):
-            if prunable(param):
-                pruned = True
+            pruned = prunable(module) and (module, pname) in scores.keys()
+            if pruned:
                 zero_params = float(torch.sum(param == 0))
                 total_params = float(param.nelement())
-                sparsity = zero_params / total_params
-                score = scores[(param, pname)]
+                sparsity = 1 - (zero_params / total_params)
+                score = scores[(module, pname)]
             else:
-                pruned = False
                 sparsity = 1.0
                 score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
