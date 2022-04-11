@@ -32,7 +32,7 @@ def summary(model, scores):
                 zero_params = float(torch.sum(param == 0))
                 total_params = float(param.nelement())
                 sparsity = 1 - (zero_params / total_params)
-                score = scores[(module, pname)]
+                score = scores[(module, pname)].detach().cpu().numpy()
             else:
                 sparsity = 1.0
                 score = np.zeros(1)
