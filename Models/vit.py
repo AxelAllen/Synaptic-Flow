@@ -364,7 +364,7 @@ class VisionTransformer(nn.Module):
                                            stride=self.patch_size)
 
     def freeze_parameters(self, freeze_classifier=False):
-        for param in self.parameters(recurse=False):
+        for param in self.parameters():
             param.requires_grad = False
         if not freeze_classifier:
             self.classifier.requires_grad = True
