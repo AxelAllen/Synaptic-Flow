@@ -363,14 +363,19 @@ class VisionTransformer(nn.Module):
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)
 
-    def _change_image_size(self, image_size):
-        self._params.image_size = image_size
+    def freeze_parameters(self, freeze_classifier=False):
+        for param in self.parameters(recurse=False):
+            param.requires_grad = False
+        if not freeze_classifier:
+            self.classifier.requires_grad = True
 
-    def _change_patch_size(self, patch_size):
-        self._params.patch_size = patch_size
+    def count_parameters(self):
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"Trainable parameters: {trainable_params} / {total_params}")
 
-    def _change_num_classes(self, num_classes):
-        self._params.num_classes = num_classes
+
+
 
 
 

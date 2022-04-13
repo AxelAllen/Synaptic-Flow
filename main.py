@@ -56,6 +56,10 @@ if __name__ == '__main__':
                         help='patch size for ViT models')
     training_args.add_argument('--image-size', type=int, default=None,
                         help="Size of the input image")
+    training_args.add_argument('--freeze-parameters', type=bool, default=False,
+                               help="Whether to freeze parameters in the model")
+    training_args.add_argument('--freeze-classifier', type=bool, default=False,
+                               help="whether to freeze the classifier")
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
     pruning_args.add_argument('--compression', type=float, default=1.0,

@@ -32,6 +32,9 @@ def run(args):
                                                                     num_classes,
                                                                     args.pretrained,
                                                                     args.weights_path).to(device)
+        if args.freeze_parameters:
+            model.freeze_parameters(freeze_classifier=args.freeze_classifier)
+            model.count_parameters()
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
