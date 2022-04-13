@@ -367,7 +367,8 @@ class VisionTransformer(nn.Module):
         for param in self.parameters():
             param.requires_grad = False
         if not freeze_classifier:
-            self.classifier.requires_grad = True
+            for param in self.classifier.parameters():
+                param.requires_grad = True
 
     def count_parameters(self):
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
