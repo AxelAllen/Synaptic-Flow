@@ -8,7 +8,7 @@ import torch
 from torch import nn
 import torch.nn.utils.prune as prune
 import torch.nn.functional as F
-from Utils.generator import parameters, prunable
+from Utils.generator import prunable
 
 class SynFlow(prune.BasePruningMethod):
 
