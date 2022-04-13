@@ -26,7 +26,7 @@ def prunable(module, batchnorm=False, residual=False):
         isprunable |= isinstance(module, (Identity1d, Identity2d))
     return isprunable
 
-def parameters(model):
+def trainable_parameters(model):
     r"""Returns an iterator over models trainable parameters, yielding just the
     parameter tensor.
     """
@@ -38,7 +38,7 @@ def prunable_parameters(model):
     r"""Returns an iterator over models prunable parameters, yielding just the
     parameter tensor."""
     for module in filter(lambda p: prunable(p), model.modules()):
-        for param in filter(lambda p: p.requires_grad, module.parameters(recurse=False)):
+        for param in module.parameters(recurse=False):
             yield param
 '''
 def masked_parameters(model, bias=False, batchnorm=False, residual=False):

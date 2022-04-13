@@ -43,12 +43,12 @@ def run(args):
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
     if args.sam:
         opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
-        optimizer = sam.SAM(generator.parameters(model), opt_class, **opt_kwargs)
+        optimizer = sam.SAM(generator.trainable_parameters(model), opt_class, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
                                                          gamma=args.lr_drop_rate)
     else:
         print(f"Sharpness Aware Minimization disabled. Using base optimizer <{args.optimizer}>")
-        optimizer = opt_class(generator.parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+        optimizer = opt_class(generator.trainable_parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
 
