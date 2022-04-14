@@ -35,20 +35,23 @@ def prune_loop(model, dataloader, device, sparsity, schedule, scope, epochs,
                                 amount=sparse,)
 
     # make pruning permanent
-    for module in filter(lambda p: prunable(p), model.modules()):
-        if hasattr(module, 'weight'):
-            prune.remove(module, "weight")
-        if hasattr(module, "bias") and prune_bias is True:
-            prune.remove(module, "bias")
+    if epochs > 0:
+        for module in filter(lambda p: prunable(p), model.modules()):
+            if hasattr(module, 'weight'):
+                prune.remove(module, "weight")
+            if hasattr(module, "bias") and prune_bias is True:
+                prune.remove(module, "bias")
 
-    # Reainitialize weights
-    if reinitialize:
-        model._initialize_weights()
+        # Reainitialize weights
+        if reinitialize:
+            model._initialize_weights()
 
-    # Confirm sparsity level
-    glob_sparsity = global_sparsity(model, prune_bias)
-    assert round(glob_sparsity, 2) == round(sparsity, 2)
-    print(f"Global sparsity after pruning: {round(100 * glob_sparsity, 2)}%")
+        # Confirm sparsity level
+        glob_sparsity = global_sparsity(model, prune_bias)
+        assert round(glob_sparsity, 2) == round(sparsity, 2)
+        print(f"Global sparsity after pruning: {round(100 * glob_sparsity, 2)}%")
 
-    summary_results = summary(model, importance_scores)
-    return summary_results
+        summary_results = summary(model, importance_scores)
+        return summary_results
+    else:
+        return 0

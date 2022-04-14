@@ -7,7 +7,7 @@ from Utils import generator
 from Utils import metrics
 from train import *
 from prune import *
-from Pruners import synflow
+
 import sam.sam as sam
 
 def run(args):
@@ -99,15 +99,18 @@ def run(args):
             ## Display Results ##
             frames = [post_result.head(1), post_result.tail(1)]
             train_result = pd.concat(frames, keys=['Post-Prune', 'Final'])
-            importance_scores = score(model, prune_loader, device, args.prune_bias)
-            prune_result = metrics.summary(model, importance_scores)
-            total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
-            possible_params = prune_result['size'].sum()
+            if args.prune_epochs > 0:
+                importance_scores = score(model, prune_loader, device, args.prune_bias)
+                prune_result = metrics.summary(model, importance_scores)
+            glob_sparsity = metrics.global_sparsity(model, args.prune_bias)
+            #total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
+            #possible_params = prune_result['size'].sum()
             # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
             # possible_flops = prune_result['flops'].sum()
             print("Train results:\n", train_result)
             print("Prune results:\n", prune_result)
-            print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
+            print(f"Parameter Sparsity: {glob_sparsity}")
+            #print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
             # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
             
             # Save Data

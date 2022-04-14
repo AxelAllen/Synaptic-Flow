@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from Utils import load
 from Utils import generator
-from Pruners import synflow
+from Utils.metrics import global_sparsity
 from train import *
 from prune import *
 import sam.sam as sam
@@ -76,13 +76,16 @@ def run(args):
     ## Display Results ##
     frames = [pre_result.head(1), pre_result.tail(1), post_result.head(1), post_result.tail(1)]
     train_result = pd.concat(frames, keys=['Init.', 'Pre-Prune', 'Post-Prune', 'Final'])
-    total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
-    possible_params = prune_result['size'].sum()
+
+    # total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
+    # possible_params = prune_result['size'].sum()
     # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
     # possible_flops = prune_result['flops'].sum()
+    glob_sparsity = global_sparsity(model, args.prune_bias)
     print("Train results:\n", train_result)
     print("Prune results:\n", prune_result)
-    print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
+    print(f"Parameter Sparsity: {glob_sparsity}")
+    # print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
     # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
 
     ## Save Results and Model ##
