@@ -34,9 +34,11 @@ def run(args):
                                                                     args.patch_size,
                                                                     num_classes,
                                                                     args.pretrained).to(device)
+        '''
         if args.freeze_parameters:
             model.freeze_parameters(freeze_classifier=args.freeze_classifier)
             model.count_parameters()
+        '''
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
@@ -46,11 +48,11 @@ def run(args):
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
     if args.sam:
         opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
-        optimizer = sam.SAM(generator.trainable_parameters(model), opt_class, **opt_kwargs)
+        optimizer = sam.SAM(generator.trainable_parameters(model, args.freeze_parameters, args.freeze_classifier), opt_class, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
                                                          gamma=args.lr_drop_rate)
     else:
-        optimizer = opt_class(generator.trainable_parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+        optimizer = opt_class(generator.trainable_parameters(model, args.freeze_parameters, args.freeze_classifier), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
     ## Save Original ##
@@ -59,6 +61,8 @@ def run(args):
     torch.save(scheduler.state_dict(),"{}/scheduler.pt".format(args.result_dir))
 
     ## Train-Prune Loop ##
+    generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
+    generator.count_prunable_parameters(model)
     for compression in args.compression_list:
         for level in args.level_list:
             print('{} compression ratio, {} train-prune levels'.format(compression, level))

@@ -32,9 +32,11 @@ def run(args):
                                                                     num_classes,
                                                                     args.pretrained,
                                                                     args.weights_path).to(device)
+        '''
         if args.freeze_parameters:
             model.freeze_parameters(freeze_classifier=args.freeze_classifier)
             model.count_parameters()
+        '''
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
@@ -43,21 +45,23 @@ def run(args):
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
     if args.sam:
         opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
-        optimizer = sam.SAM(generator.trainable_parameters(model), opt_class, **opt_kwargs)
+        optimizer = sam.SAM(generator.trainable_parameters(model, args.freeze_parameters, args.freeze_classifier), opt_class, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
                                                          gamma=args.lr_drop_rate)
     else:
         print(f"Sharpness Aware Minimization disabled. Using base optimizer <{args.optimizer}>")
-        optimizer = opt_class(generator.trainable_parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+        optimizer = opt_class(generator.trainable_parameters(model, args.freeze_parameters, args.freeze_classifier), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
 
     ## Pre-Train ##
+    generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Pre-Train for {} epochs.'.format(args.pre_epochs))
     pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                  test_loader, device, args.pre_epochs, args.verbose)
 
     ## Prune ##
+    generator.count_prunable_parameters(model)
     print('Pruning for {} epochs.'.format(args.prune_epochs))
     sparsity = 10 ** (-float(args.compression))
     prune_result = prune_loop(model, prune_loader, device, sparsity,
@@ -65,6 +69,7 @@ def run(args):
 
     
     ## Post-Train ##
+    generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Post-Training for {} epochs.'.format(args.post_epochs))
     post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                   test_loader, device, args.post_epochs, args.verbose) 

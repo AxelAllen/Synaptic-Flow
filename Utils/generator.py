@@ -26,13 +26,28 @@ def prunable(module, batchnorm=False, residual=False):
         isprunable |= isinstance(module, (Identity1d, Identity2d))
     return isprunable
 
-def trainable_parameters(model):
+def parameters(model):
+    for module in model.modules():
+        for param in module.parameters(recurse=False):
+            yield param
+
+def trainable_parameters(model, freeze_parameters, freeze_classifier):
     r"""Returns an iterator over models trainable parameters, yielding just the
     parameter tensor.
     """
-    for module in filter(lambda p: trainable(p), model.modules()):
-        for param in filter(lambda p: p.requires_grad, module.parameters(recurse=False)):
-            yield param
+    if not freeze_parameters and not freeze_classifier:
+        for module in filter(lambda p: trainable(p), model.modules()):
+            for param in filter(lambda p: p.requires_grad, module.parameters(recurse=False)):
+                yield param
+    elif freeze_parameters and not freeze_classifier:
+        if hasattr(model, "classifier"):
+            for param in model.classifier.parameters():
+                yield param
+        else:
+            last_layer = list(model.children())[-1]
+            for param in last_layer.parameters():
+                yield param
+
 
 def prunable_parameters(model):
     r"""Returns an iterator over models prunable parameters, yielding just the
@@ -40,6 +55,17 @@ def prunable_parameters(model):
     for module in filter(lambda p: prunable(p), model.modules()):
         for param in module.parameters(recurse=False):
             yield param
+
+def count_trainable_parameters(model, freeze_parameters, freeze_classifier):
+    trainable_params = sum(p.numel() for p in trainable_parameters(model, freeze_parameters, freeze_classifier))
+    total_params = sum(p.numel() for p in parameters(model))
+    print(f"Trainable parameters: {trainable_params} / {total_params}")
+
+def count_prunable_parameters(model):
+    prunable_params = sum(p.numel() for p in prunable_parameters(model) if p.requires_grad)
+    total_params = sum(p.numel() for p in parameters(model))
+    print(f"Prunable parameters: {prunable_params} / {total_params}")
+
 '''
 def masked_parameters(model, bias=False, batchnorm=False, residual=False):
     r"""Returns an iterator over models prunable parameters, yielding both the

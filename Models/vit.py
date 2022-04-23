@@ -363,6 +363,7 @@ class VisionTransformer(nn.Module):
                                            kernel_size=self.patch_size,
                                            stride=self.patch_size)
 
+    '''
     def freeze_parameters(self, freeze_classifier=False):
         for param in self.parameters():
             param.requires_grad = False
@@ -374,7 +375,7 @@ class VisionTransformer(nn.Module):
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in self.parameters())
         print(f"Trainable parameters: {trainable_params} / {total_params}")
-
+    '''
 
 
 
