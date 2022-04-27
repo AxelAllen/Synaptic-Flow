@@ -2,6 +2,8 @@ import torch.nn as nn
 from Models.tinyimagenet_resnet import Identity1d, Identity2d
 from Models.resnet import StdConv2d
 from Models.vit import LinearGeneral
+from torch.nn.init import xavier_uniform_
+
 
 
 def masks(module):
@@ -76,3 +78,14 @@ def masked_parameters(model, bias=False, batchnorm=False, residual=False):
             if param is not module.bias or bias is True:
                 yield mask, param
 '''
+
+def initialize_weights(model, module=None):
+    if module is not None:
+        if hasattr(model, module):
+            for param in model.module.parameters(recurse=False):
+                xavier_uniform_(param)
+    if module is None:
+        for module_ in filter(lambda p: prunable(p), model.modules()):
+            for param in module_.parameters(recurse=False):
+                xavier_uniform_(param)
+

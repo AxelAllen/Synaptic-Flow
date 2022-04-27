@@ -67,7 +67,20 @@ def run(args):
     prune_result = prune_loop(model, prune_loader, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
 
-    
+    generator.initialize_weights(model, "classifier")
+    ## Re-define optimizer to update whole model ##
+    '''
+    if args.sam:
+        opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
+        optimizer = sam.SAM(generator.prunable_parameters(model), opt_class, **opt_kwargs)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer.base_optimizer, milestones=args.lr_drops,
+                                                         gamma=args.lr_drop_rate)
+    else:
+        print(f"Sharpness Aware Minimization disabled. Using base optimizer <{args.optimizer}>")
+        optimizer = opt_class(generator.prunable_parameters(model), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
+    '''
+
     ## Post-Train ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Post-Training for {} epochs.'.format(args.post_epochs))
