@@ -81,8 +81,8 @@ def masked_parameters(model, bias=False, batchnorm=False, residual=False):
 
 def initialize_weights(model, module=None):
     if module is not None:
-        if hasattr(model, module):
-            for param in model.module.parameters(recurse=False):
+        if hasattr(model, module) and module == "classifier":
+            for param in model.classifier.parameters(recurse=False):
                 xavier_uniform_(param)
     if module is None:
         for module_ in filter(lambda p: prunable(p), model.modules()):
