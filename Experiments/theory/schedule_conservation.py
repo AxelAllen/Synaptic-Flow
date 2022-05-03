@@ -17,15 +17,20 @@ def run(args):
     device = load.device(args.gpu)
 
     ## Data ##
-    input_shape, num_classes = load.dimension(args.dataset) 
-    data_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.prune_dataset_ratio * num_classes)
+    print('Loading {} dataset.'.format(args.dataset))
+    input_shape, num_classes = load.dimension(args.dataset, args.image_size)
+    data_loader = load.dataloader(args.dataset, args.prune_batch_size, True, args.workers, args.image_size,
+                                  args.prune_dataset_ratio * num_classes)
 
     ## Model, Loss, Optimizer ##
     if args.model_class == 'transformer':
         model = load.model(args.model, args.model_class).load_model(args.model,
                                                                     input_shape,
+                                                                    args.patch_size,
                                                                     num_classes,
-                                                                    args.pretrained).to(device)
+                                                                    args.pretrained,
+                                                                    args.weights_path).to(device)
+
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
@@ -35,7 +40,7 @@ def run(args):
     torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))
 
 
-    def score(parameters, model, loss, dataloader, device):
+    def score(model, dataloader, device, prune_bias=False):
         @torch.no_grad()
         def linearize(model):
             signs = {}
@@ -56,31 +61,52 @@ def run(args):
         maxflow = torch.sum(output)
         maxflow.backward()
         scores = {}
-        for _, p in parameters:
-            scores[id(p)] = torch.clone(p.grad * p).detach().abs_()
-            p.grad.data.zero_()
+
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                score = torch.clone(param.grad * param).detach().abs_()
+                param.grad.data.zero_()
+                scores.update({(module, pname): score})
         nonlinearize(model, signs)
 
         return scores, maxflow.item()
 
     def mask(parameters, scores, sparsity):
-        global_scores = torch.cat([torch.flatten(v) for v in scores.values()])
-        k = int((1.0 - sparsity) * global_scores.numel())
+        mask = torch.nn.utils.parameters_to_vector(
+            [
+            getattr(module, name + "_mask", torch.ones_like(getattr(module, name)))
+            for (module, name) in parameters
+            ]
+        )
+        importance_scores = torch.nn.utils.parameters_to_vector(
+            [
+                scores.get((module, name), getattr(module, name))
+                for (module, name) in parameters
+            ]
+        )
+        zero = torch.tensor([0.]).to(mask.device)
+        one = torch.tensor([1.]).to(mask.device)
+        k = int((1.0 - sparsity) * importance_scores.numel())
         cutsize = 0
         if not k < 1:
-            cutsize = torch.sum(torch.topk(global_scores, k, largest=False).values).item()
-            threshold, _ = torch.kthvalue(global_scores, k)
-            for mask, param in parameters:
-                score = scores[id(param)]
-                zero = torch.tensor([0.]).to(mask.device)
-                one = torch.tensor([1.]).to(mask.device)
-                mask.copy_(torch.where(score <= threshold, zero, one))
-        return cutsize
+            cutsize = torch.sum(torch.topk(importance_scores, k, largest=False).values).item()
+            threshold, _ = torch.kthvalue(importance_scores, k)
+            mask.copy_(torch.where(importance_scores <= threshold, zero, one))
+        return cutsize, mask
 
     @torch.no_grad()
-    def apply_mask(parameters):
-        for mask, param in parameters:
-            param.mul_(mask)
+    def apply_mask(parameters, mask):
+        pointer = 0
+        for module, name in parameters:
+            param = getattr(module, name)
+            # The length of the parameter
+            num_param = param.numel()
+            # Slice the mask, reshape it
+            param_mask = mask[pointer: pointer + num_param].view_as(param)
+            param.mul_(param_mask)
+            pointer += num_param
 
     results = []
     for style in ['linear', 'exponential']:
@@ -90,18 +116,18 @@ def run(args):
             max_ratios = []
             for j, epochs in enumerate(args.prune_epoch_list):
                 model.load_state_dict(torch.load("{}/model.pt".format(args.result_dir), map_location=device))
-                parameters = list(generator.masked_parameters(model, args.prune_bias, args.prune_batchnorm, args.prune_residual))
+                parameters = list(generator.prunable_parameters(model))
                 model.eval()
                 ratios = []
                 for epoch in tqdm(range(epochs)):
-                    apply_mask(parameters)
-                    scores, maxflow = score(parameters, model, loss, data_loader, device)
+                    scores, maxflow = score(model, data_loader, device)
                     sparsity = 10**(-float(exp))
                     if style == 'linear':
                         sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
                     if style == 'exponential':
                         sparse = sparsity**((epoch + 1) / epochs)
-                    cutsize = mask(parameters, scores, sparse)
+                    cutsize, mask = mask(parameters, scores, sparse)
+                    # apply_mask(parameters, mask)
                     ratios.append(cutsize / maxflow)
                 max_ratios.append(max(ratios))
             sparsity_ratios.append(max_ratios)
