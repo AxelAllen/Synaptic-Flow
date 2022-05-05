@@ -2,12 +2,12 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import torch.nn.utils.prune as prune
-from Pruners.synflow import score, SynFlow
+from Pruners.pruners_ import *
 from Utils.generator import prunable
 from Utils.metrics import global_sparsity, summary
 
 
-def prune_loop(model, dataloader, device, sparsity, schedule, scope, epochs,
+def prune_loop(model, pruner, dataloader, loss, device, sparsity, schedule, scope, epochs,
                reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False):
     r"""Applies score mask loop iteratively to a final sparsity level.
     """
@@ -19,7 +19,7 @@ def prune_loop(model, dataloader, device, sparsity, schedule, scope, epochs,
     importance_scores = None
     # Prune model
     for epoch in tqdm(range(epochs)):
-        importance_scores = score(model, dataloader, device, prune_bias)
+        importance_scores = pruner.score(model, dataloader, device, prune_bias)
         sparse = sparsity
         if schedule == 'exponential':
             sparse = sparsity**((epoch + 1) / epochs)
@@ -31,7 +31,7 @@ def prune_loop(model, dataloader, device, sparsity, schedule, scope, epochs,
                 if pname == "bias" and prune_bias is False:
                     continue
                 params.append((module, pname))
-        prune.global_unstructured(parameters=params, pruning_method=SynFlow, importance_scores=importance_scores,
+        prune.global_unstructured(parameters=params, pruning_method=pruner, importance_scores=importance_scores,
                                 amount=sparse,)
 
     # make pruning permanent

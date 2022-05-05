@@ -11,6 +11,7 @@ from Models import imagenet_vgg
 from Models import imagenet_resnet
 from Models import vit
 from Utils import custom_datasets
+from Pruners.pruners_ import *
 
 def device(gpu):
     use_cuda = torch.cuda.is_available()
@@ -207,4 +208,14 @@ def optimizer(optimizer):
         'rms' : (optim.RMSprop, {}),
     }
     return optimizers[optimizer]
+
+def pruner(pruner):
+    pruners = {
+        'synflow' : SynFlow,
+        'random' : Rand,
+        'mag' : Mag,
+        'snip': SNIP,
+        'grasp': GraSP
+    }
+    return pruners[pruner]
 

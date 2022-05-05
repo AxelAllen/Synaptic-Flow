@@ -1,0 +1,197 @@
+import torch
+from torch import nn
+import torch.nn.utils.prune as prune
+import torch.nn.functional as F
+from Utils.generator import prunable
+
+
+class Pruner(prune.BasePruningMethod):
+    '''
+        options:
+        global, structured, unstructured
+        '''
+    PRUNING_TYPE = "unstructured"
+
+    def __init__(self, amount):
+        super(Pruner, self).__init__()
+        assert 1 >= amount >= 0
+        self.sparsity = amount
+
+
+    def compute_mask(self, importance_scores, default_mask):
+        mask = default_mask.clone()
+        zero = torch.tensor([0.]).to(mask.device)
+        one = torch.tensor([1.]).to(mask.device)
+        k = int((1.0 - self.sparsity) * importance_scores.numel())
+        if not k < 1:
+            threshold, _ = torch.kthvalue(importance_scores, k)
+            mask.copy_(torch.where(importance_scores <= threshold, zero, one))
+        return mask
+
+    def shuffle(self, default_mask):
+        shape = default_mask.shape
+        mask = default_mask.clone()
+        perm = torch.randperm(mask.nelement())
+        mask = mask.reshape(-1)[perm].reshape(shape)
+        return mask
+
+class SynFlow(Pruner):
+
+    def __init__(self, amount):
+        super(SynFlow, self).__init__(amount)
+
+    def score(self, model, dataloader, loss,  device, prune_bias=False):
+
+        scores = {}
+
+        @torch.no_grad()
+        def linearize(model):
+            # model.double()
+            signs = {}
+            for name, param in model.state_dict().items():
+                signs[name] = torch.sign(param)
+                param.abs_()
+            return signs
+
+        @torch.no_grad()
+        def nonlinearize(model, signs):
+            # model.float()
+            for name, param in model.state_dict().items():
+                param.mul_(signs[name])
+
+        signs = linearize(model)
+
+        (data, _) = next(iter(dataloader))
+        input_dim = list(data[0, :].shape)
+        input = torch.ones([1] + input_dim).to(device)  # , dtype=torch.float64).to(device)
+        output = model(input)
+        torch.sum(output).backward()
+
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                score = torch.clone(param.grad * param).detach().abs_()
+                param.grad.data.zero_()
+                scores.update({(module, pname): score})
+
+        nonlinearize(model, signs)
+
+        return scores
+
+class Rand(Pruner):
+    def __init__(self, amount):
+        super(Rand, self).__init__(amount)
+
+    def score(self, model, dataloader, loss,  device, prune_bias=False):
+        scores = {}
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                scores.update({(module, pname): torch.randn_like(param)})
+        return scores
+
+class Mag(Pruner):
+    def __init__(self, amount):
+        super(Mag, self).__init__(amount)
+
+    def score(self, model, dataloader, loss, device, prune_bias=False):
+        scores = {}
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                scores.update({(module, pname): torch.clone(param.data).detach().abs_()})
+        return scores
+
+# Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
+class SNIP(Pruner):
+    def __init__(self, amount):
+        super(SNIP, self).__init__(amount)
+
+    def score(self, model, dataloader, loss, device, prune_bias=False):
+
+        scores = {}
+        # allow masks to have gradient
+        for module in filter(lambda p: prunable(p), model.modules()):
+            if hasattr(module, "weight"):
+                module.weight_mask = nn.Parameter(torch.ones_like(module.weight))
+                module.weight_mask.requires_grad = True
+
+        # compute gradient
+        for batch_idx, (data, target) in enumerate(dataloader):
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            loss(output, target).backward()
+
+        # calculate score |g * theta|
+            for module in filter(lambda p: prunable(p), model.modules()):
+                for pname, param in module.named_parameters(recurse=False):
+                    if pname == "weight":
+                        score = module.weight_mask.grad.detach().abs()
+                        scores.update({(module, pname): score})
+                        param.grad.data.zero_()
+                        module.weight_mask.grad.data.zero_()
+                        module.weight_mask.requires_grad = False
+
+        # normalize score
+        all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
+        norm = torch.sum(all_scores)
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "weight":
+                    scores[(module, pname)] = scores[(module, pname)].div_norm()
+
+# Based on https://github.com/alecwangcq/GraSP/blob/master/pruner/GraSP.py#L49
+class GraSP(Pruner):
+    def __init__(self, amount):
+        super(GraSP, self).__init__(amount)
+        self.temp = 200
+        self.eps = 1e-10
+
+    def score(self, model, dataloader, loss,  device, prune_bias=False):
+
+        scores = {}
+        # first gradient vector without computational graph
+        stopped_grads = 0
+        for batch_idx, (data, target) in enumerate(dataloader):
+            data, target = data.to(device), target.to(device)
+            output = model(data) / self.temp
+            L = loss(output, target)
+
+            grads = torch.autograd.grad(L, [param for param in filter(lambda p: prunable(p), model.parameters())],
+                                        create_graph=False)
+            flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
+            stopped_grads += flatten_grads
+
+        # second gradient vector with computational graph
+        for batch_idx, (data, target) in enumerate(dataloader):
+            data, target = data.to(device), target.to(device)
+            output = model(data) / self.temp
+            L = loss(output, target)
+
+            grads = torch.autograd.grad(L, [param for param in filter(lambda p: prunable(p), model.parameters())],
+                                        create_graph=False)
+            flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
+
+            gnorm = (stopped_grads * flatten_grads).sum()
+            gnorm.backward()
+
+        # calculate score Hg * theta (negate to remove top percent)
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                score = torch.clone(param.grad * param.data).detach()
+                scores.update({(module, pname): score})
+                param.grad.data.zero_()
+
+        # normalize score
+        all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
+        norm = torch.abs(torch.sum(all_scores)) + self.eps
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                scores[(module, pname)] = scores[(module, pname)].div_norm()

@@ -53,6 +53,10 @@ def run(args):
         optimizer = opt_class(generator.trainable_parameters(model, args.freeze_parameters, args.freeze_classifier), lr=args.lr, weight_decay=args.weight_decay, **opt_kwargs)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_drops, gamma=args.lr_drop_rate)
 
+    ## Load Pruner ##
+    sparsity = 10 ** (-float(args.compression))
+    pruner = load.pruner(args.pruner)(sparsity)
+
 
     ## Pre-Train ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
@@ -63,8 +67,7 @@ def run(args):
     ## Prune ##
     generator.count_prunable_parameters(model)
     print('Pruning for {} epochs.'.format(args.prune_epochs))
-    sparsity = 10 ** (-float(args.compression))
-    prune_result = prune_loop(model, prune_loader, device, sparsity,
+    prune_result = prune_loop(model, pruner, prune_loader, loss, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
 
     generator.initialize_weights(model, "classifier")

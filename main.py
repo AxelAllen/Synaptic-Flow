@@ -62,6 +62,8 @@ if __name__ == '__main__':
                                help="whether to freeze the classifier")
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
+    pruning_args.add_argument('--pruner', type=str, default='synflow', choices=['synflow', 'random', 'mag', 'snip', 'grasp'],
+                              help='type of pruner to use.')
     pruning_args.add_argument('--compression', type=float, default=1.0,
                         help='quotient of prunable non-zero prunable parameters before and after pruning (default: 1.0)')
     pruning_args.add_argument('--prune-epochs', type=int, default=1,
