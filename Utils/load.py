@@ -212,8 +212,8 @@ def optimizer(optimizer):
 def pruner(pruner):
     pruners = {
         'synflow' : SynFlow,
-        'random' : Rand,
-        'mag' : Mag,
+        'random' : Random,
+        'mag' : Magnitude,
         'snip': SNIP,
         'grasp': GraSP
     }

@@ -79,9 +79,9 @@ class SynFlow(Pruner):
 
         return scores
 
-class Rand(Pruner):
+class Random(Pruner):
     def __init__(self, amount):
-        super(Rand, self).__init__(amount)
+        super(Random, self).__init__(amount)
 
     def score(self, model, dataloader, loss,  device, prune_bias=False):
         scores = {}
@@ -92,9 +92,9 @@ class Rand(Pruner):
                 scores.update({(module, pname): torch.randn_like(param)})
         return scores
 
-class Mag(Pruner):
+class Magnitude(Pruner):
     def __init__(self, amount):
-        super(Mag, self).__init__(amount)
+        super(Magnitude, self).__init__(amount)
 
     def score(self, model, dataloader, loss, device, prune_bias=False):
         scores = {}

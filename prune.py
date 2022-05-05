@@ -14,6 +14,7 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     """
     pruner = load.pruner(prune_class)(sparsity)
     prune_method = load.pruner(prune_class)
+    print(f"Pruning with {pruner.__class__.__name__} pruner.")
     # Set model to train or eval mode
     model.train()
     if not train_mode:
