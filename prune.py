@@ -19,7 +19,7 @@ def prune_loop(model, pruner, dataloader, loss, device, sparsity, schedule, scop
     importance_scores = None
     # Prune model
     for epoch in tqdm(range(epochs)):
-        importance_scores = pruner.score(model, dataloader, device, prune_bias)
+        importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
         sparse = sparsity
         if schedule == 'exponential':
             sparse = sparsity**((epoch + 1) / epochs)
