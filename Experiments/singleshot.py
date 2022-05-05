@@ -102,7 +102,7 @@ def run(args):
     glob_sparsity = global_sparsity(model, args.prune_bias)
     print("Train results:\n", train_result)
     print("Prune results:\n", prune_result)
-    print(f"Parameter Sparsity: {glob_sparsity}")
+    print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
     # print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
     # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
 

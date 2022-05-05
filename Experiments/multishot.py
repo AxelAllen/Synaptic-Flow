@@ -5,6 +5,7 @@ import torch.nn as nn
 from Utils import load
 from Utils import generator
 from Utils import metrics
+from Utils import load
 from train import *
 from prune import *
 
@@ -106,7 +107,8 @@ def run(args):
             frames = [post_result.head(1), post_result.tail(1)]
             train_result = pd.concat(frames, keys=['Post-Prune', 'Final'])
             if args.prune_epochs > 0:
-                importance_scores = score(model, prune_loader, device, args.prune_bias)
+                pruner = load.pruner(args.pruner)(sparsity)
+                importance_scores = pruner.score(model, prune_loader, device, args.prune_bias)
                 prune_result = metrics.summary(model, importance_scores)
             glob_sparsity = metrics.global_sparsity(model, args.prune_bias)
             #total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
@@ -115,7 +117,7 @@ def run(args):
             # possible_flops = prune_result['flops'].sum()
             print("Train results:\n", train_result)
             print("Prune results:\n", prune_result)
-            print(f"Parameter Sparsity: {glob_sparsity}")
+            print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
             #print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
             # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
             
