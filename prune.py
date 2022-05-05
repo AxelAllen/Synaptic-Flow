@@ -4,13 +4,16 @@ import numpy as np
 import torch.nn.utils.prune as prune
 from Pruners.pruners_ import *
 from Utils.generator import prunable
+from Utils import load
 from Utils.metrics import global_sparsity, summary
 
 
-def prune_loop(model, pruner, dataloader, loss, device, sparsity, schedule, scope, epochs,
+def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule, scope, epochs,
                reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False):
     r"""Applies score mask loop iteratively to a final sparsity level.
     """
+    pruner = load.pruner(prune_class)(sparsity)
+    prune_method = load.pruner(prune_class)
     # Set model to train or eval mode
     model.train()
     if not train_mode:
@@ -31,8 +34,8 @@ def prune_loop(model, pruner, dataloader, loss, device, sparsity, schedule, scop
                 if pname == "bias" and prune_bias is False:
                     continue
                 params.append((module, pname))
-        prune.global_unstructured(parameters=params, pruning_method=pruner, importance_scores=importance_scores,
-                                amount=sparse,)
+        prune.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
+                                amount=sparse)
 
     # make pruning permanent
     if epochs > 0:
