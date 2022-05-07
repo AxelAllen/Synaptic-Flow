@@ -115,7 +115,12 @@ def run(args):
             max_ratios = []
             for j, epochs in enumerate(args.prune_epoch_list):
                 model.load_state_dict(torch.load("{}/model.pt".format(args.result_dir), map_location=device))
-                parameters = list(generator.prunable_parameters(model))
+                parameters = []
+                for module in filter(lambda p: prunable(p), model.modules()):
+                    for pname, param in module.named_parameters(recurse=False):
+                        if pname == "bias" and args.prune_bias is False:
+                            continue
+                        parameters.append((module, pname))
                 model.eval()
                 ratios = []
                 for epoch in tqdm(range(epochs)):
