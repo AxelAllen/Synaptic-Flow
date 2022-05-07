@@ -34,7 +34,8 @@ def run(args):
                                                                     input_shape,
                                                                     args.patch_size,
                                                                     num_classes,
-                                                                    args.pretrained).to(device)
+                                                                    args.pretrained,
+                                                                    args.weights_path).to(device)
         '''
         if args.freeze_parameters:
             model.freeze_parameters(freeze_classifier=args.freeze_classifier)
@@ -66,7 +67,7 @@ def run(args):
     ## Train-Prune Loop ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     generator.count_prunable_parameters(model)
-    sparsity = 10 ** (-float(args.compression))
+
     for compression in args.compression_list:
         for level in args.level_list:
             print('{} compression ratio, {} train-prune levels'.format(compression, level))
@@ -83,6 +84,7 @@ def run(args):
                                 test_loader, device, args.pre_epochs, args.verbose)
 
                 # Prune Model
+                sparsity = 10 ** (-float(compression))
                 print('Pruning for {} epochs.'.format(args.prune_epochs))
                 prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                                           args.compression_schedule, args.mask_scope, args.prune_epochs,
