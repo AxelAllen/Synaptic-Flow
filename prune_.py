@@ -71,7 +71,7 @@ class BasePruningMethod(ABC):
         )  # this gets set in apply()
         mask = getattr(module, self._tensor_name + "_mask")
         orig = getattr(module, self._tensor_name + "_orig")
-        pruned_tensor = mask.to(dtype=orig.dtype) * orig.copy()
+        pruned_tensor = mask.to(dtype=orig.dtype) * orig.detach()
         return pruned_tensor
 
     @classmethod

@@ -43,9 +43,9 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     if epochs > 0:
         for module in filter(lambda p: prunable(p), model.modules()):
             if hasattr(module, 'weight'):
-                prune.remove(module, "weight")
+                prune_.remove(module, "weight")
             if hasattr(module, "bias") and prune_bias is True:
-                prune.remove(module, "bias")
+                prune_.remove(module, "bias")
 
         # Reainitialize weights
         if reinitialize:
