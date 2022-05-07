@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import torch
 import numpy as np
-import torch.nn.utils.prune as prune
+import prune_
 from Pruners.pruners_ import *
 from Utils.generator import prunable
 from Utils import load
@@ -36,7 +36,7 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
                     if pname == "bias" and prune_bias is False:
                         continue
                     params.append((module, pname))
-            prune.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
+            prune_.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
                                     amount=sparse)
 
     # make pruning permanent
