@@ -1,11 +1,11 @@
 import torch
 from torch import nn
-import torch.nn.utils.prune as prune
+import prune_
 import torch.nn.functional as F
 from Utils.generator import prunable
 import types
 
-class Pruner(prune.BasePruningMethod):
+class Pruner(prune_.BasePruningMethod):
     '''
         options:
         global, structured, unstructured
