@@ -22,21 +22,22 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
 
     importance_scores = None
     # Prune model
-    for epoch in tqdm(range(epochs)):
-        importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
-        sparse = sparsity
-        if schedule == 'exponential':
-            sparse = sparsity**((epoch + 1) / epochs)
-        elif schedule == 'linear':
-            sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
-        params = []
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
-                params.append((module, pname))
-        prune.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
-                                amount=sparse)
+    with torch.autograd.set_detect_anomaly(True):
+        for epoch in tqdm(range(epochs)):
+            importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
+            sparse = sparsity
+            if schedule == 'exponential':
+                sparse = sparsity**((epoch + 1) / epochs)
+            elif schedule == 'linear':
+                sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
+            params = []
+            for module in filter(lambda p: prunable(p), model.modules()):
+                for pname, param in module.named_parameters(recurse=False):
+                    if pname == "bias" and prune_bias is False:
+                        continue
+                    params.append((module, pname))
+            prune.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
+                                    amount=sparse)
 
     # make pruning permanent
     if epochs > 0:
