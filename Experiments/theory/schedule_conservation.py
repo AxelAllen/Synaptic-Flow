@@ -72,7 +72,7 @@ def run(args):
 
         return scores, maxflow.item()
 
-    def mask(parameters, scores, sparsity):
+    def compute_mask(parameters, scores, sparsity):
         mask = torch.nn.utils.parameters_to_vector(
             [
             getattr(module, name + "_mask", torch.ones_like(getattr(module, name)))
@@ -130,7 +130,7 @@ def run(args):
                         sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
                     if style == 'exponential':
                         sparse = sparsity**((epoch + 1) / epochs)
-                    cutsize, mask = mask(parameters, scores, sparse)
+                    cutsize, mask = compute_mask(parameters, scores, sparse)
                     # apply_mask(parameters, mask)
                     ratios.append(cutsize / maxflow)
                 max_ratios.append(max(ratios))
