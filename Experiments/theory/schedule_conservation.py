@@ -34,7 +34,6 @@ def run(args):
     else:
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
-                                                         args.dense_classifier,
                                                          args.pretrained).to(device)
     loss = nn.CrossEntropyLoss()
     torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))

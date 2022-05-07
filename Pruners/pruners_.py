@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.utils.prune as prune
 import torch.nn.functional as F
 from Utils.generator import prunable
-
+import types
 
 class Pruner(prune.BasePruningMethod):
     '''
@@ -107,17 +107,33 @@ class Magnitude(Pruner):
 
 # Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
 class SNIP(Pruner):
+
     def __init__(self, amount):
         super(SNIP, self).__init__(amount)
+
+    def snip_forward_conv2d(self, x):
+        return F.conv2d(x, self.weight * self.weight_mask, self.bias,
+                        self.stride, self.padding, self.dilation, self.groups)
+
+    def snip_forward_linear(self, x):
+        return F.linear(x, self.weight * self.weight_mask, self.bias)
 
     def score(self, model, dataloader, loss, device, prune_bias=False):
 
         scores = {}
+
         # allow masks to have gradient
         for module in filter(lambda p: prunable(p), model.modules()):
             if hasattr(module, "weight"):
                 module.weight_mask = nn.Parameter(torch.ones_like(module.weight))
                 module.weight_mask.requires_grad = True
+
+            # Override the forward methods:
+            if isinstance(module, nn.Conv2d):
+                module.forward = types.MethodType(self.snip_forward_conv2d, module)
+
+            if isinstance(module, nn.Linear):
+                module.forward = types.MethodType(self.snip_forward_linear, module)
 
         # compute gradient
         for batch_idx, (data, target) in enumerate(dataloader):
