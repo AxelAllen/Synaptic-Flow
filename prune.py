@@ -24,6 +24,7 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     # Prune model
     with torch.autograd.set_detect_anomaly(True):
         for epoch in tqdm(range(epochs)):
+            torch.cuda.memory_summary(device=device, abbreviated=False)
             importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
             sparse = sparsity
             if schedule == 'exponential':
