@@ -42,16 +42,23 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
             print(f"memory allocated after params and before pruning: {torch.cuda.memory_allocated(device=device)}")
             prune_.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
                                     amount=sparse)
-            print(f"memory allocated after pruning: {torch.cuda.memory_allocated(device=device)}")
-
+            print(f"memory allocated after pruning and before remove: {torch.cuda.memory_allocated(device=device)}")
+            for module in filter(lambda p: prunable(p), model.modules()):
+                if hasattr(module, 'weight'):
+                    prune_.remove(module, "weight")
+                if hasattr(module, "bias") and prune_bias is True:
+                    prune_.remove(module, "bias")
+            print(f"memory allocated after removing: {torch.cuda.memory_allocated(device=device)}")
+    
     # make pruning permanent
     if epochs > 0:
+        ''''
         for module in filter(lambda p: prunable(p), model.modules()):
             if hasattr(module, 'weight'):
                 prune_.remove(module, "weight")
             if hasattr(module, "bias") and prune_bias is True:
                 prune_.remove(module, "bias")
-
+        '''
         # Reainitialize weights
         if reinitialize:
             model._initialize_weights()
