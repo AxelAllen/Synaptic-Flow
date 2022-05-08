@@ -24,21 +24,25 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     # Prune model
     with torch.autograd.set_detect_anomaly(True):
         for epoch in tqdm(range(epochs)):
-            torch.cuda.memory_summary(device=device, abbreviated=False)
+            print(f"memory allocated before score: {torch.cuda.memory_allocated(device=device)}")
             importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
+            print(f"memory allocated after score: {torch.cuda.memory_allocated(device=device)}")
             sparse = sparsity
             if schedule == 'exponential':
                 sparse = sparsity**((epoch + 1) / epochs)
             elif schedule == 'linear':
                 sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
+            print(f"memory allocated before params: {torch.cuda.memory_allocated(device=device)}")
             params = []
             for module in filter(lambda p: prunable(p), model.modules()):
                 for pname, param in module.named_parameters(recurse=False):
                     if pname == "bias" and prune_bias is False:
                         continue
                     params.append((module, pname))
+            print(f"memory allocated after params and before pruning: {torch.cuda.memory_allocated(device=device)}")
             prune_.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
                                     amount=sparse)
+            print(f"memory allocated after pruning: {torch.cuda.memory_allocated(device=device)}")
 
     # make pruning permanent
     if epochs > 0:
