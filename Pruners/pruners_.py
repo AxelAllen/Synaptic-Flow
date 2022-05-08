@@ -58,8 +58,6 @@ class SynFlow(Pruner):
             # model.float()
             for name, param in model.state_dict().items():
                 param.mul_(signs[name])
-                if param.requires_grad:
-                    param.grad.data.zero_()
 
         signs = linearize(model)
 
