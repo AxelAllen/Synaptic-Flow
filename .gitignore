@@ -155,3 +155,5 @@ wandb/
 
 # other folders
 pretrained_weights/
+Results/
+Result/vit/

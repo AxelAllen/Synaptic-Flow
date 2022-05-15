@@ -8,6 +8,7 @@ from Utils import metrics
 from Utils import load
 from train import *
 from prune import *
+import wandb
 
 import sam.sam as sam
 
@@ -15,6 +16,14 @@ def run(args):
     if not args.save:
         print("This experiment requires an expid.")
         quit()
+
+    if args.wandb:
+        wandb.login()
+        wandb.init(
+            project="synflow",
+            name=f"experiment_{args.expid}",
+            config=vars(args)
+            )
 
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
@@ -80,8 +89,10 @@ def run(args):
             for l in range(level):
 
                 # Pre Train Model
-                train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
+                pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader,
                                 test_loader, device, args.pre_epochs, args.verbose)
+                pre_result_logs = wandb.Table(dataframe=pre_result)
+                wandb.log({"pre_result": pre_result_logs})
 
                 # Prune Model
                 sparsity = 10 ** (-float(compression))
@@ -89,6 +100,9 @@ def run(args):
                 prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                                           args.compression_schedule, args.mask_scope, args.prune_epochs,
                                           args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+
+                prune_result_logs = wandb.Table(dataframe=prune_result)
+                wandb.log({"prune_result": prune_result_logs})
 
                 # Reset Model's Weights
                 original_dict = torch.load("{}/model.pt".format(args.result_dir), map_location=device)
@@ -104,6 +118,8 @@ def run(args):
             # Train Model
             post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                           test_loader, device, args.post_epochs, args.verbose)
+            post_result_logs = wandb.Table(dataframe=post_result)
+            wandb.log({"post_result": post_result_logs})
             
             ## Display Results ##
             frames = [post_result.head(1), post_result.tail(1)]
@@ -130,4 +146,4 @@ def run(args):
             post_result.to_pickle("{}/post-train-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression),  str(level)))
             prune_result.to_pickle("{}/compression-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression), str(level)))
 
-
+    wandb.finish()

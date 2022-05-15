@@ -117,6 +117,8 @@ if __name__ == '__main__':
                         help='random seed (default: 1)')
     parser.add_argument('--verbose', action='store_true',
                         help='print statistics during training and testing')
+    parser.add_argument('--wandb', default=False, action='store_true',
+                        help='whether to log experiments using wandb')
     args = parser.parse_args()
 
 

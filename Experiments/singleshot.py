@@ -8,10 +8,18 @@ from Utils.metrics import global_sparsity
 from train import *
 from prune import *
 import sam.sam as sam
+import wandb
 
 # from pthflops import count_ops
 
 def run(args):
+    if args.wandb:
+        wandb.login()
+        wandb.init(
+            project="synflow",
+            name=f"experiment_{args.expid}",
+            config=vars(args)
+            )
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
     device = load.device(args.gpu)
@@ -59,6 +67,8 @@ def run(args):
     print('Pre-Train for {} epochs.'.format(args.pre_epochs))
     pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                  test_loader, device, args.pre_epochs, args.verbose)
+    pre_result_logs = wandb.Table(dataframe=pre_result)
+    wandb.log({"pre_result": pre_result_logs})
 
     ## Prune ##
     generator.count_prunable_parameters(model)
@@ -66,6 +76,9 @@ def run(args):
     sparsity = 10 ** (-float(args.compression))
     prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+    prune_result_logs = wandb.Table(dataframe=prune_result)
+    wandb.log({"prune_result": prune_result_logs})
+
 
     generator.initialize_weights(model, "classifier")
     ## Re-define optimizer to update whole model ##
@@ -85,7 +98,9 @@ def run(args):
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Post-Training for {} epochs.'.format(args.post_epochs))
     post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                  test_loader, device, args.post_epochs, args.verbose) 
+                                  test_loader, device, args.post_epochs, args.verbose)
+    post_result_logs = wandb.Table(dataframe=post_result)
+    wandb.log({"post_result": post_result_logs})
 
     ## Count Flops ##
     # (data, _) = next(iter(train_loader))
@@ -115,5 +130,7 @@ def run(args):
         torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))
         torch.save(optimizer.state_dict(),"{}/optimizer.pt".format(args.result_dir))
         torch.save(scheduler.state_dict(),"{}/scheduler.pt".format(args.result_dir))
+
+    wandb.finish()
 
 
