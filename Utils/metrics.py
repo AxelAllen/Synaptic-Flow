@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 from Utils.generator import prunable
+import wandb
 
 def global_sparsity(model, prune_bias=False):
     r"""Returns remaining and total number of prunable parameters.

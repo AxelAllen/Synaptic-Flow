@@ -17,7 +17,7 @@ def run(args):
         wandb.login()
         wandb.init(
             project="synflow",
-            name=f"experiment_{args.expid}",
+            name=f"{args.expid}",
             config=vars(args)
             )
     ## Random Seed and Device ##
