@@ -69,6 +69,10 @@ def run(args):
                                  test_loader, device, args.pre_epochs, args.verbose)
     pre_result_logs = wandb.Table(dataframe=pre_result)
     wandb.log({"pre_result": pre_result_logs})
+    wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
+               "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
+               "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
+               "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
 
     ## Prune ##
     generator.count_prunable_parameters(model)
@@ -101,6 +105,10 @@ def run(args):
                                   test_loader, device, args.post_epochs, args.verbose)
     post_result_logs = wandb.Table(dataframe=post_result)
     wandb.log({"post_result": post_result_logs})
+    wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
+               "post_result_test_loss": post_result_logs.get_column("test_loss"),
+               "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
+               "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
 
     ## Count Flops ##
     # (data, _) = next(iter(train_loader))

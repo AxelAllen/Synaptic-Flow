@@ -28,7 +28,7 @@ if __name__ == '__main__':
                         help='model architecture (default: fc)')
     training_args.add_argument('--model-class', type=str, default='transformer', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
                         help='model class (default: default)')
-    training_args.add_argument('--pretrained', type=bool, default=False,
+    training_args.add_argument('--pretrained', default=False, action='store_true',
                         help='load pretrained weights (default: False)')
     training_args.add_argument('--weights-path', type=str, default=None,
                                help="Path to pretrained weights. If None, load from URL.")

@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from sam.sam import SAM
 import GPUtil
-import wandb
+#import wandb
 
 def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interval=10):
     model.train()
@@ -59,9 +59,9 @@ def train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader
     for epoch in tqdm(range(epochs)):
         GPUtil.showUtilization()
         train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose)
-        wandb.log({"train_loss": train_loss})
+        #wandb.log({"train_loss": train_loss})
         test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
-        wandb.log({"test_loss": test_loss, "acc1": accuracy1, "acc5": accuracy5})
+        #wandb.log({"test_loss": test_loss, "acc1": accuracy1, "acc5": accuracy5})
         row = [train_loss, test_loss, accuracy1, accuracy5]
         scheduler.step()
         rows.append(row)

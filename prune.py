@@ -64,7 +64,6 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         glob_sparsity = global_sparsity(model, prune_bias)
         assert round(glob_sparsity, 2) == round(sparsity, 2)
         print(f"Global sparsity after pruning: {round(100 * glob_sparsity, 2)}%")
-        wandb.log({"global_sparsity": glob_sparsity})
 
         summary_results = summary(model, importance_scores)
         return summary_results
