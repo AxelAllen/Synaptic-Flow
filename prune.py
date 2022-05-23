@@ -10,7 +10,7 @@ import wandb
 
 
 def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule, scope, epochs,
-               reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False):
+               reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False, use_wandb=False):
     r"""Applies score mask loop iteratively to a final sparsity level.
     """
     pruner = load.pruner(prune_class)(sparsity)
@@ -32,7 +32,10 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
             sparse = sparsity**((epoch + 1) / epochs)
         elif schedule == 'linear':
             sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
+        if use_wandb:
+            wandb.log({"sparsity": sparse})
         params = []
+
         for module in filter(lambda p: prunable(p), model.modules()):
             for pname, param in module.named_parameters(recurse=False):
                 if pname == "bias" and prune_bias is False:
@@ -64,6 +67,8 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         glob_sparsity = global_sparsity(model, prune_bias)
         assert round(glob_sparsity, 2) == round(sparsity, 2)
         print(f"Global sparsity after pruning: {round(100 * glob_sparsity, 2)}%")
+        if use_wandb:
+            wandb.log({"global_sparsity_after_pruning": glob_sparsity})
 
         summary_results = summary(model, importance_scores)
         return summary_results

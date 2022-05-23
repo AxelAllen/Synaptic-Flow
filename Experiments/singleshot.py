@@ -66,8 +66,8 @@ def run(args):
     ## Pre-Train ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Pre-Train for {} epochs.'.format(args.pre_epochs))
-    pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                 test_loader, device, args.pre_epochs, args.verbose)
+    pre_result = pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+                                 test_loader, device, args.pre_epochs, args.verbose, use_wandb=args.wandb)
     if args.wandb:
         pre_result_logs = wandb.Table(dataframe=pre_result)
         wandb.log({"pre_result": pre_result_logs})
@@ -81,7 +81,7 @@ def run(args):
     print('Pruning for {} epochs.'.format(args.prune_epochs))
     sparsity = 10 ** (-float(args.compression))
     prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
-               args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+               args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert, use_wandb=args.wandb)
     if args.wandb:
         prune_result_logs = wandb.Table(dataframe=prune_result)
         wandb.log({"prune_result": prune_result_logs})
@@ -104,8 +104,8 @@ def run(args):
     ## Post-Train ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     print('Post-Training for {} epochs.'.format(args.post_epochs))
-    post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                  test_loader, device, args.post_epochs, args.verbose)
+    post_result = post_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+                                  test_loader, device, args.post_epochs, args.verbose, use_wandb=args.wandb)
     if args.wandb:
         post_result_logs = wandb.Table(dataframe=post_result)
         wandb.log({"post_result": post_result_logs})

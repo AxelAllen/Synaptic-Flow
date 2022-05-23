@@ -91,8 +91,8 @@ def run(args):
             for l in range(level):
 
                 # Pre Train Model
-                pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader,
-                                test_loader, device, args.pre_epochs, args.verbose)
+                pre_result = pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+                                test_loader, device, args.pre_epochs, args.verbose, use_wandb=args.wandb)
                 if args.wandb:
                     pre_result_logs = wandb.Table(dataframe=pre_result)
                     wandb.log({"pre_result": pre_result_logs})
@@ -106,7 +106,7 @@ def run(args):
                 print('Pruning for {} epochs.'.format(args.prune_epochs))
                 prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                                           args.compression_schedule, args.mask_scope, args.prune_epochs,
-                                          args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+                                          args.reinitialize, args.prune_train_mode, args.shuffle, args.invert, use_wandb=args.wandb)
                 if args.wandb:
                     prune_result_logs = wandb.Table(dataframe=prune_result)
                     wandb.log({"prune_result": prune_result_logs})
@@ -124,8 +124,8 @@ def run(args):
                 scheduler.load_state_dict(torch.load("{}/scheduler.pt".format(args.result_dir), map_location=device))
                 '''
             # Train Model
-            post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
-                                          test_loader, device, args.post_epochs, args.verbose)
+            post_result = post_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+                                          test_loader, device, args.post_epochs, args.verbose, use_wandb=args.wandb)
             if args.wandb:
                 post_result_logs = wandb.Table(dataframe=post_result)
                 wandb.log({"post_result": post_result_logs})
@@ -145,8 +145,6 @@ def run(args):
                 print("Prune results:\n", prune_result)
             glob_sparsity = metrics.global_sparsity(model, args.prune_bias)
             print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
-            if args.wandb:
-                wandb.log({"global_sparsity": glob_sparsity})
 
             '''
             total_params = int((prune_result['sparsity'] * prune_result['size']).sum())

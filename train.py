@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from sam.sam import SAM
 import GPUtil
-#import wandb
+import wandb
 
 def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interval=10):
     model.train()
@@ -53,15 +53,34 @@ def eval(model, loss, dataloader, device, verbose):
             average_loss, correct1, len(dataloader.dataset), accuracy1))
     return average_loss, accuracy1, accuracy5
 
-def train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader, device, epochs, verbose):
+def pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader, device, epochs, verbose, use_wandb=False):
     test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
     rows = [[np.nan, test_loss, accuracy1, accuracy5]]
     for epoch in tqdm(range(epochs)):
         GPUtil.showUtilization()
         train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose)
-        #wandb.log({"train_loss": train_loss})
+        if use_wandb:
+            wandb.log({"pre_train_loss": train_loss})
         test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
-        #wandb.log({"test_loss": test_loss, "acc1": accuracy1, "acc5": accuracy5})
+        if use_wandb:
+            wandb.log({"pre_test_loss": test_loss, "pre_acc1": accuracy1, "pre_acc5": accuracy5})
+        row = [train_loss, test_loss, accuracy1, accuracy5]
+        scheduler.step()
+        rows.append(row)
+    columns = ['train_loss', 'test_loss', 'top1_accuracy', 'top5_accuracy']
+    return pd.DataFrame(rows, columns=columns)
+
+def post_train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_loader, device, epochs, verbose, use_wandb=False):
+    test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
+    rows = [[np.nan, test_loss, accuracy1, accuracy5]]
+    for epoch in tqdm(range(epochs)):
+        GPUtil.showUtilization()
+        train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose)
+        if use_wandb:
+            wandb.log({"post_train_loss": train_loss})
+        test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
+        if use_wandb:
+            wandb.log({"post_test_loss": test_loss, "post_acc1": accuracy1, "post_acc5": accuracy5})
         row = [train_loss, test_loss, accuracy1, accuracy5]
         scheduler.step()
         rows.append(row)
