@@ -96,10 +96,6 @@ def run(args):
                 if args.wandb:
                     pre_result_logs = wandb.Table(dataframe=pre_result)
                     wandb.log({"pre_result": pre_result_logs})
-                    wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
-                               "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
-                               "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
-                               "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
 
                 # Prune Model
                 sparsity = 10 ** (-float(compression))
@@ -129,10 +125,6 @@ def run(args):
             if args.wandb:
                 post_result_logs = wandb.Table(dataframe=post_result)
                 wandb.log({"post_result": post_result_logs})
-                wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
-                           "post_result_test_loss": post_result_logs.get_column("test_loss"),
-                           "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
-                           "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
             
             ## Display Results ##
             frames = [post_result.head(1), post_result.tail(1)]
