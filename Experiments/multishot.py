@@ -22,6 +22,7 @@ def run(args):
         wandb.init(
             project="synflow",
             name=f"{args.expid}",
+            group=f"{args.groupid}",
             config=vars(args)
             )
 

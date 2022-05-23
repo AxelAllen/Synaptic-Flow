@@ -105,6 +105,8 @@ if __name__ == '__main__':
                         help='experiment name (default: example)')
     parser.add_argument('--expid', type=str, default='',
                         help='name used to save results (default: "")')
+    parser.add_argument('--groupid', type=str, default='default',
+                        help='wandb group name.')
     parser.add_argument('--result-dir', type=str, default='Results/vit/data',
                         help='path to directory to save results (default: "Results/vit/data")')
     parser.add_argument('--gpu', type=int, default='0',

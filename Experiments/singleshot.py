@@ -18,6 +18,7 @@ def run(args):
         wandb.init(
             project="synflow",
             name=f"{args.expid}",
+            group=f"{args.groupid}",
             config=vars(args)
             )
     ## Random Seed and Device ##
@@ -67,12 +68,13 @@ def run(args):
     print('Pre-Train for {} epochs.'.format(args.pre_epochs))
     pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                  test_loader, device, args.pre_epochs, args.verbose)
-    pre_result_logs = wandb.Table(dataframe=pre_result)
-    wandb.log({"pre_result": pre_result_logs})
-    wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
-               "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
-               "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
-               "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
+    if args.wandb:
+        pre_result_logs = wandb.Table(dataframe=pre_result)
+        wandb.log({"pre_result": pre_result_logs})
+        wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
+                   "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
+                   "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
+                   "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
 
     ## Prune ##
     generator.count_prunable_parameters(model)
@@ -80,8 +82,9 @@ def run(args):
     sparsity = 10 ** (-float(args.compression))
     prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
-    prune_result_logs = wandb.Table(dataframe=prune_result)
-    wandb.log({"prune_result": prune_result_logs})
+    if args.wandb:
+        prune_result_logs = wandb.Table(dataframe=prune_result)
+        wandb.log({"prune_result": prune_result_logs})
 
 
     generator.initialize_weights(model, "classifier")
@@ -103,12 +106,13 @@ def run(args):
     print('Post-Training for {} epochs.'.format(args.post_epochs))
     post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                   test_loader, device, args.post_epochs, args.verbose)
-    post_result_logs = wandb.Table(dataframe=post_result)
-    wandb.log({"post_result": post_result_logs})
-    wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
-               "post_result_test_loss": post_result_logs.get_column("test_loss"),
-               "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
-               "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
+    if args.wandb:
+        post_result_logs = wandb.Table(dataframe=post_result)
+        wandb.log({"post_result": post_result_logs})
+        wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
+                   "post_result_test_loss": post_result_logs.get_column("test_loss"),
+                   "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
+                   "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
 
     ## Count Flops ##
     # (data, _) = next(iter(train_loader))
@@ -138,7 +142,7 @@ def run(args):
         torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))
         torch.save(optimizer.state_dict(),"{}/optimizer.pt".format(args.result_dir))
         torch.save(scheduler.state_dict(),"{}/scheduler.pt".format(args.result_dir))
-
-    wandb.finish()
+    if args.wandb:
+        wandb.finish()
 
 
