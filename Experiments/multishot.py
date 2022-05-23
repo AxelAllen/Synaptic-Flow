@@ -79,23 +79,26 @@ def run(args):
     for compression in args.compression_list:
         for level in args.level_list:
             print('{} compression ratio, {} train-prune levels'.format(compression, level))
-            
+
+            '''
             # Reset Model, Optimizer, and Scheduler
             model.load_state_dict(torch.load("{}/model.pt".format(args.result_dir), map_location=device))
             optimizer.load_state_dict(torch.load("{}/optimizer.pt".format(args.result_dir), map_location=device))
             scheduler.load_state_dict(torch.load("{}/scheduler.pt".format(args.result_dir), map_location=device))
-            
+            '''
+
             for l in range(level):
 
                 # Pre Train Model
                 pre_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader,
                                 test_loader, device, args.pre_epochs, args.verbose)
-                pre_result_logs = wandb.Table(dataframe=pre_result)
-                wandb.log({"pre_result": pre_result_logs})
-                wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
-                           "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
-                           "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
-                           "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
+                if args.wandb:
+                    pre_result_logs = wandb.Table(dataframe=pre_result)
+                    wandb.log({"pre_result": pre_result_logs})
+                    wandb.log({"pre_result_train_loss": pre_result_logs.get_column("train_loss"),
+                               "pre_result_test_loss": pre_result_logs.get_column("test_loss"),
+                               "pre_result_acc1": pre_result_logs.get_column("top1_accuracy"),
+                               "pre_result_acc5": pre_result_logs.get_column("top5_accuracy")})
 
                 # Prune Model
                 sparsity = 10 ** (-float(compression))
@@ -103,10 +106,11 @@ def run(args):
                 prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
                                           args.compression_schedule, args.mask_scope, args.prune_epochs,
                                           args.reinitialize, args.prune_train_mode, args.shuffle, args.invert)
+                if args.wandb:
+                    prune_result_logs = wandb.Table(dataframe=prune_result)
+                    wandb.log({"prune_result": prune_result_logs})
 
-                prune_result_logs = wandb.Table(dataframe=prune_result)
-                wandb.log({"prune_result": prune_result_logs})
-
+                '''
                 # Reset Model's Weights
                 original_dict = torch.load("{}/model.pt".format(args.result_dir), map_location=device)
                 original_weights = dict(filter(lambda v: (v[0].endswith(('.weight', '.bias'))), original_dict.items()))
@@ -117,16 +121,17 @@ def run(args):
                 # Reset Optimizer and Scheduler
                 optimizer.load_state_dict(torch.load("{}/optimizer.pt".format(args.result_dir), map_location=device))
                 scheduler.load_state_dict(torch.load("{}/scheduler.pt".format(args.result_dir), map_location=device))
-
+                '''
             # Train Model
             post_result = train_eval_loop(model, loss, optimizer, scheduler, train_loader, 
                                           test_loader, device, args.post_epochs, args.verbose)
-            post_result_logs = wandb.Table(dataframe=post_result)
-            wandb.log({"post_result": post_result_logs})
-            wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
-                       "post_result_test_loss": post_result_logs.get_column("test_loss"),
-                       "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
-                       "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
+            if args.wandb:
+                post_result_logs = wandb.Table(dataframe=post_result)
+                wandb.log({"post_result": post_result_logs})
+                wandb.log({"post_result_train_loss": post_result_logs.get_column("train_loss"),
+                           "post_result_test_loss": post_result_logs.get_column("test_loss"),
+                           "post_result_acc1": post_result_logs.get_column("top1_accuracy"),
+                           "post_result_acc5": post_result_logs.get_column("top5_accuracy")})
             
             ## Display Results ##
             frames = [post_result.head(1), post_result.tail(1)]
@@ -139,7 +144,8 @@ def run(args):
                 print("Prune results:\n", prune_result)
             glob_sparsity = metrics.global_sparsity(model, args.prune_bias)
             print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
-            wandb.log({"global_sparsity": glob_sparsity})
+            if args.wandb:
+                wandb.log({"global_sparsity": glob_sparsity})
 
             '''
             total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
@@ -154,4 +160,16 @@ def run(args):
             post_result.to_pickle("{}/post-train-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression),  str(level)))
             prune_result.to_pickle("{}/compression-{}-{}-{}.pkl".format(args.result_dir, args.pruner, str(compression), str(level)))
 
-    wandb.finish()
+            # Reset Model's Weights
+            original_dict = torch.load("{}/model.pt".format(args.result_dir), map_location=device)
+            original_weights = dict(filter(lambda v: (v[0].endswith(('.weight', '.bias'))), original_dict.items()))
+            model_dict = model.state_dict()
+            model_dict.update(original_weights)
+            model.load_state_dict(model_dict)
+
+            # Reset Optimizer and Scheduler
+            optimizer.load_state_dict(torch.load("{}/optimizer.pt".format(args.result_dir), map_location=device))
+            scheduler.load_state_dict(torch.load("{}/scheduler.pt".format(args.result_dir), map_location=device))
+
+    if args.wandb:
+        wandb.finish()
