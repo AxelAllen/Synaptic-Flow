@@ -1,8 +1,10 @@
 import argparse
 import json
 import os
+from transformers import SchedulerType
 from Experiments import singleshot
 from Experiments import multishot
+from Experiments import bert_glue as glue
 from Experiments.theory import unit_conservation
 from Experiments.theory import layer_conservation
 from Experiments.theory import imp_conservation
@@ -57,9 +59,14 @@ if __name__ == '__main__':
     training_args.add_argument('--image-size', type=int, default=None,
                         help="Size of the input image")
     training_args.add_argument('--freeze-parameters', action='store_true',
-                               help="Whether to freeze parameters in the model")
+                               help='Whether to freeze parameters in the model')
     training_args.add_argument('--freeze-classifier', action='store_true',
                                help="whether to freeze the classifier")
+    training_args.add_argument('--lr_scheduler_type', type=SchedulerType, default='linear',
+                               choices=['linear', 'cosine', 'cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'],
+                               help='The scheduler type to use.')
+    training_args.add_argument('--num_warmup_steps', type=int, default=0,
+                                help='Number of steps for the warmup in the lr scheduler.')
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
     pruning_args.add_argument('--pruner', type=str, default='synflow', choices=['synflow', 'random', 'mag', 'snip', 'grasp'],
@@ -100,7 +107,7 @@ if __name__ == '__main__':
                         help='list of number of prune-train cycles (levels) for multishot (default: [])')
     ## Experiment Hyperparameters ##
     parser.add_argument('--experiment', type=str, default='singleshot', 
-                        choices=['singleshot','multishot','unit-conservation',
+                        choices=['glue', 'singleshot','multishot','unit-conservation',
                         'layer-conservation','imp-conservation','schedule-conservation'],
                         help='experiment name (default: example)')
     parser.add_argument('--expid', type=str, default='',
@@ -147,6 +154,8 @@ if __name__ == '__main__':
             json.dump(args.__dict__, f, sort_keys=True, indent=4)
 
     ## Run Experiment ##
+    if args.experiment == 'glue':
+        glue.run(args)
     if args.experiment == 'singleshot':
         singleshot.run(args)
     if args.experiment == 'multishot':

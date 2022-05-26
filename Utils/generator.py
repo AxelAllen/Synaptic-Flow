@@ -18,7 +18,7 @@ def trainable(module):
     """
     return not isinstance(module, (Identity1d, Identity2d))
 
-def prunable(module, batchnorm=False, residual=False):
+def prunable(module, batchnorm=False, residual=False, layernorm=False):
     r"""Returns boolean whether a module is prunable.
     """
     isprunable = isinstance(module, (nn.Linear, nn.Conv2d, StdConv2d, LinearGeneral))
@@ -26,6 +26,8 @@ def prunable(module, batchnorm=False, residual=False):
         isprunable |= isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d))
     if residual:
         isprunable |= isinstance(module, (Identity1d, Identity2d))
+    if layernorm:
+        isprunable |= isinstance(module, nn.LayerNorm)
     return isprunable
 
 def parameters(model):
@@ -41,6 +43,7 @@ def trainable_parameters(model, freeze_parameters, freeze_classifier):
         for module in filter(lambda p: trainable(p), model.modules()):
             for param in filter(lambda p: p.requires_grad, module.parameters(recurse=False)):
                 yield param
+
     elif freeze_parameters and not freeze_classifier:
         if hasattr(model, "classifier"):
             for param in model.classifier.parameters():
@@ -49,7 +52,6 @@ def trainable_parameters(model, freeze_parameters, freeze_classifier):
             last_layer = list(model.children())[-1]
             for param in last_layer.parameters():
                 yield param
-
 
 def prunable_parameters(model):
     r"""Returns an iterator over models prunable parameters, yielding just the
