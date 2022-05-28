@@ -60,13 +60,18 @@ def run(args):
     }
 
     ## max length ##
-    max_length = 0
-    for _, dataset_dict in glue.items():
+    max_lengths = {}
+    columns = ["sentence", "premise", "hypothesis", "sentence1", "sentence2", "question", "question1", "question2"]
+    for name, dataset_dict in glue.items():
+        max_length = 0
         for _, dataset_split in dataset_dict.items():
-            for sentence in dataset_split["sentence"]:
-                sent_len = len(sentence)
-                if sent_len > max_length:
-                    max_length = sent_len
+            for col in columns:
+                if col in dataset_split.features:
+                    for sentence in dataset_split[col]:
+                        sent_len = len(sentence)
+                        if sent_len > max_length:
+                            max_length = sent_len
+        max_lengths.update({name: max_length})
 
     ## labels ##
     labels = {}
@@ -110,6 +115,7 @@ def run(args):
     for (task_name, task), (model_name, model), (lname, label) in zip(glue.items(), models.items(), labels.items()):
         is_regression = task_name == "stsb"
         sentence1_key, sentence2_key = task_to_keys[task_name]
+        max_length = max_lengths[task_name]
 
         ## Map labels to IDs ##
         label_to_id = None
