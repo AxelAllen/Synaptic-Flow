@@ -90,7 +90,7 @@ def pre_train_eval_loop_glue(models, dataloaders, device, args, use_wandb=False)
             num_training_steps=max_train_steps,
         )
         for epoch in tqdm(range(args.pre_epochs)):
-            # GPUtil.showUtilization()
+            GPUtil.showUtilization()
             train_loss = train_glue(model, train_loader, optimizer, lr_scheduler, device, epoch, args.verbose)
             if use_wandb:
                 wandb.log({"pre_train_loss": train_loss})

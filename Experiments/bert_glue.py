@@ -33,7 +33,6 @@ def run(args):
     ## load GLUE datasets ##
     cola = load_dataset('glue', 'cola')
     sst2 = load_dataset('glue', 'sst2')
-    '''
     mrpc = load_dataset('glue', 'mrpc')
     qqp = load_dataset('glue', 'qqp')
     stsb = load_dataset('glue', 'stsb')
@@ -44,8 +43,8 @@ def run(args):
     #ax = load_dataset('glue', 'ax')
     glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
             'wnli': wnli} #, 'ax': ax
-    '''
-    glue = {'cola': cola, 'sst2': sst2}
+
+    # glue = {'cola': cola, 'sst2': sst2}
 
     ## map task to keys ##
     task_to_keys = {
