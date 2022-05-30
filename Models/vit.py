@@ -290,7 +290,7 @@ class VisionTransformer(nn.Module):
         """
         cls._check_model_name_is_valid(model_name)
         params = get_model_params(model_name, override_params)
-        model = cls(params=params)
+        model = cls(params)
         model._change_in_channels(in_channels)
         return model
 
@@ -323,6 +323,7 @@ class VisionTransformer(nn.Module):
         Returns:
             A pretrained vision transformer model.
         """
+        override_params.update({'num_classes': num_classes})
         model = cls.from_name(model_name,
                               num_classes=num_classes,
                               **override_params)
