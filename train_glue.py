@@ -97,12 +97,8 @@ def pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_w
             do_train=True,
             do_eval=True,
             do_predict=False,
-            report_to="wandb",
+            report_to=["wandb"],
             run_name=None,
-            auto_find_batch_size=True,
-
-
-
         )
         trainer = Trainer(model=model,
                           args=training_args,
