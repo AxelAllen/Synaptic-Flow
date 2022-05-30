@@ -7,7 +7,10 @@ from transformers import (
     BertTokenizer,
     PretrainedConfig,
     default_data_collator,
+    Trainer,
+    TrainingArguments
 )
+from transformers.trainer_utils import get_last_checkpoint
 from datasets import load_dataset
 import wandb
 from train_glue import pre_train_eval_loop_glue, post_train_eval_loop_glue
@@ -26,6 +29,7 @@ def run(args):
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
     device = load.device(args.gpu)
+
 
     ## Data ##
     print('Loading GLUE dataset.')
@@ -202,7 +206,7 @@ def run(args):
     '''
 
     ## Pre-Train ##
-    pre_train_eval_loop_glue(models, dataloaders, device, args, use_wandb=False)
+    pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False)
 
 
 

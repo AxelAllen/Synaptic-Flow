@@ -8,7 +8,7 @@ from datasets import load_metric
 import GPUtil
 import wandb
 from Utils import generator
-from transformers import AdamW, get_scheduler
+from transformers import AdamW, get_scheduler, EvalPrediction, Trainer, TrainingArguments
 
 def train_glue(model, dataloader, optimizer, lr_scheduler, device, epoch, verbose, log_interval=10):
     model.train()
@@ -16,6 +16,7 @@ def train_glue(model, dataloader, optimizer, lr_scheduler, device, epoch, verbos
     total_loss = 0
 
     for step, batch in enumerate(tqdm(dataloader)):
+        batch = batch.to(device)
         outputs = model(**batch)
         loss = outputs.loss
         total_loss += loss.detach().float()
@@ -40,6 +41,7 @@ def eval_glue(task, model, dataloader, device, verbose):
         pass
     else:
         for step, batch in enumerate(dataloader):
+            batch = batch.to(device)
             with torch.no_grad():
                 outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
@@ -56,7 +58,7 @@ def eval_glue(task, model, dataloader, device, verbose):
             average_loss, correct1, len(dataloader.dataset), accuracy1))'''
     return eval_metrics
 
-def pre_train_eval_loop_glue(models, dataloaders, device, args, use_wandb=False):
+def pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False):
     for (task, model), (_, dataloader_dict) in zip(models.items(), dataloaders.items()):
         if task == "stsb":
             continue
@@ -89,6 +91,31 @@ def pre_train_eval_loop_glue(models, dataloaders, device, args, use_wandb=False)
             num_warmup_steps=args.num_warmup_steps,
             num_training_steps=max_train_steps,
         )
+        ## Transformer Trainer Arguments ##
+        training_args = TrainingArguments(
+            output_dir="Results/bert/glue",
+            do_train=True,
+            do_eval=True,
+            do_predict=False,
+            report_to="wandb",
+            run_name=None,
+            auto_find_batch_size=True,
+
+
+
+        )
+        trainer = Trainer(model=model,
+                          args=training_args,
+                          data_collator=None,
+                          train_dataset=train_loader,
+                          eval_dataset=eval_loader,
+                          tokenizer=tokenizer,
+                          compute_metrics=None,
+                          optimizers=(optimizer, lr_scheduler))
+
+
+
+
         for epoch in tqdm(range(args.pre_epochs)):
             GPUtil.showUtilization()
             train_loss = train_glue(model, train_loader, optimizer, lr_scheduler, device, epoch, args.verbose)
