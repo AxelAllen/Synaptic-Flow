@@ -134,6 +134,7 @@ url_map = {
 
 def load_pretrained_weights(model,
                             model_name,
+                            device,
                             weights_path=None,
                             load_fc=True,
                             advprop=False):
@@ -148,10 +149,10 @@ def load_pretrained_weights(model,
     """
     if isinstance(weights_path, str):
         if weights_path.endswith(".tar"):
-            checkpoint = torch.load(weights_path)
+            checkpoint = torch.load(weights_path, map_location=device)
             state_dict = checkpoint['state_dict']
         else:
-            state_dict = torch.load(weights_path)
+            state_dict = torch.load(weights_path, map_location=device)
     else:
         state_dict = model_zoo.load_url(url_map[model_name])
 

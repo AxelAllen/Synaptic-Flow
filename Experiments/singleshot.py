@@ -40,6 +40,7 @@ def run(args):
                                                                     args.patch_size,
                                                                     num_classes,
                                                                     args.pretrained,
+                                                                    device,
                                                                     args.weights_path).to(device)
         '''
         if args.freeze_parameters:

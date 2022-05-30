@@ -297,6 +297,7 @@ class VisionTransformer(nn.Module):
     @classmethod
     def from_pretrained(cls,
                         model_name,
+                        device,
                         weights_path=None,
                         in_channels=3,
                         num_classes=1000,
@@ -327,6 +328,7 @@ class VisionTransformer(nn.Module):
                               **override_params)
         load_pretrained_weights(model,
                                 model_name,
+                                device,
                                 weights_path=weights_path,
                                 load_fc=(num_classes == 1000))
         model._change_in_channels(in_channels)
@@ -382,12 +384,12 @@ class VisionTransformer(nn.Module):
 
 
 
-def load_model(model_arch, input_shape, patch_size, num_classes, pretrained, weights_path=None):
+def load_model(model_arch, input_shape, patch_size, num_classes, pretrained, device, weights_path=None):
     in_channels = input_shape[0]
     image_size = input_shape[1]
     if pretrained:
         override_params = {'image_size': image_size, 'patch_size': patch_size}
-        model = VisionTransformer.from_pretrained(model_name=model_arch, weights_path=weights_path, in_channels=in_channels,
+        model = VisionTransformer.from_pretrained(model_name=model_arch, device=device, weights_path=weights_path, in_channels=in_channels,
                         num_classes=num_classes, **override_params)
     else:
 
