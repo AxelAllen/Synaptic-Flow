@@ -147,7 +147,11 @@ def load_pretrained_weights(model,
         load_fc (bool): Whether to load pretrained weights for fc layer at the end of the model.
     """
     if isinstance(weights_path, str):
-        state_dict = torch.load(weights_path)
+        if weights_path.endswith(".tar"):
+            checkpoint = torch.load(weights_path)
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = torch.load(weights_path)
     else:
         state_dict = model_zoo.load_url(url_map[model_name])
 
