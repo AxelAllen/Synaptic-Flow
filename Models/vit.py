@@ -325,7 +325,7 @@ class VisionTransformer(nn.Module):
         """
         override_params.update({'num_classes': num_classes})
         model = cls.from_name(model_name,
-                              num_classes=num_classes,
+                              in_channels=in_channels,
                               **override_params)
         load_pretrained_weights(model,
                                 model_name,
