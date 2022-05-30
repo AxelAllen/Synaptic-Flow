@@ -19,7 +19,7 @@ def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interv
         output = model(data)
         train_loss = loss(output, target)
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
-        losses.update(loss.item(), data.size(0))
+        losses.update(train_loss.item(), data.size(0))
         top1.update(acc1[0], data.size(0))
         top5.update(acc5[0], data.size(0))
 

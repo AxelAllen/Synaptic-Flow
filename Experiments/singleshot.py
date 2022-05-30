@@ -50,7 +50,7 @@ def run(args):
         model = load.model(args.model, args.model_class)(input_shape,
                                                          num_classes,
                                                          args.pretrained).to(device)
-    loss = nn.CrossEntropyLoss()
+    loss = nn.CrossEntropyLoss().to(device)
     opt_class, opt_kwargs = load.optimizer(args.optimizer)
     if args.sam:
         opt_kwargs.update({'lr': args.lr, 'weight_decay': args.weight_decay})
