@@ -149,6 +149,7 @@ def run(args):
         glue_preprocessed.update({task_name: processed_dataset})
 
 
+    '''
     ## Create dataloaders ##
     dataloaders = {}
 
@@ -199,7 +200,7 @@ def run(args):
                                     {"train": train_dataloader,
                                      "validation": eval_dataloader,
                                      "test": test_dataloader}})
-
+    '''
 
     '''
     if args.resume_from_checkpoint:
@@ -207,7 +208,7 @@ def run(args):
     '''
 
     ## Pre-Train ##
-    pre_results = pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False)
+    pre_results = pre_train_eval_loop_glue(models, glue_preprocessed, tokenizer, device, args, use_wandb=False)
     with open(f"{args.result_dir}/pre-train-results.pickle", "wb") as w:
         pickle.dump(pre_results, w, protocol=pickle.HIGHEST_PROTOCOL)
 

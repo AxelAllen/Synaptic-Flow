@@ -58,19 +58,19 @@ def eval_glue(task, model, dataloader, device, verbose):
             average_loss, correct1, len(dataloader.dataset), accuracy1))'''
     return eval_metrics
 
-def pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False):
+def pre_train_eval_loop_glue(models, datasets, tokenizer, device, args, use_wandb=False):
     train_results = {}
-    for (task, model), (_, dataloader_dict) in zip(models.items(), dataloaders.items()):
+    for (task, model), (_, dataset_dict) in zip(models.items(), datasets.items()):
         if task == "mnli":
-            train_loader, eval_loader = dataloader_dict["train"], dataloader_dict["validation_matched"]
+            train_data, eval_data = dataset_dict["train"], dataset_dict["validation_matched"]
         else:
-            train_loader, eval_loader = dataloader_dict["train"], dataloader_dict["validation"]
+            train_data, eval_data = dataset_dict["train"], dataset_dict["validation"]
 
         is_regression = task == "stsb"
         metric = load_metric("glue", task)
 
         ## Set-up training ##
-        num_update_steps_per_epoch = len(train_loader)
+        num_update_steps_per_epoch = len(train_data) / args.train_batch_size
         max_train_steps = args.pre_epochs * num_update_steps_per_epoch
 
         no_decay = ["bias", "LayerNorm.weight"]
@@ -114,7 +114,7 @@ def pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_w
             do_predict=False,
             evaluation_strategy="epoch",
             per_device_train_batch_size=args.train_batch_size,
-            per_device_eval_batch_size=args.eval_batch_size,
+            per_device_eval_batch_size=args.test_batch_size,
             learning_rate=args.lr,
             weight_decay=args.weight_decay,
             num_train_epochs=args.pre_epochs,
@@ -130,8 +130,8 @@ def pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_w
         trainer = Trainer(model=model,
                           args=training_args,
                           data_collator=default_data_collator,
-                          train_dataset=train_loader,
-                          eval_dataset=eval_loader,
+                          train_dataset=train_data,
+                          eval_dataset=eval_data,
                           tokenizer=tokenizer,
                           compute_metrics=compute_metrics,
                           optimizers=(optimizer, lr_scheduler))
@@ -220,7 +220,7 @@ def post_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_
             do_predict=False,
             evaluation_strategy="epoch",
             per_device_train_batch_size=args.train_batch_size,
-            per_device_eval_batch_size=args.eval_batch_size,
+            per_device_eval_batch_size=args.test_batch_size,
             learning_rate=args.lr,
             weight_decay=args.weight_decay,
             num_train_epochs=args.pre_epochs,
