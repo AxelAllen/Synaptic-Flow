@@ -1,3 +1,4 @@
+import pickle
 import torch
 from torch.utils.data import DataLoader
 from Utils import load
@@ -206,8 +207,9 @@ def run(args):
     '''
 
     ## Pre-Train ##
-    pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False)
-
+    pre_results = pre_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False)
+    with open(f"{args.result_dir}/pre-train-results.pickle", "wb") as w:
+        pickle.dump(pre_results, w, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 
@@ -230,13 +232,14 @@ def run(args):
 
         if args.save:
             prune_result.to_pickle(f"{args.result_dir}/compression_{name}.pkl")
-
+    
     ## Post-Train ##
-    post_result = post_train_eval_loop_glue(models, dataloaders, device, args, use_wandb=False)      
-    if args.wandb:
-        post_result_logs = wandb.Table(dataframe=post_result)
-        wandb.log({"post_result": post_result_logs})
+    post_results = post_train_eval_loop_glue(models, dataloaders, tokenizer, device, args, use_wandb=False)      
     '''
+    #if args.wandb:
+    #    post_result_logs = wandb.Table(dataframe=post_result)
+    #    wandb.log({"post_result": post_result_logs})
+
     ## Display Results ##
     if args.wandb:
         wandb.finish()

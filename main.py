@@ -62,7 +62,7 @@ if __name__ == '__main__':
                                help='Whether to freeze parameters in the model')
     training_args.add_argument('--freeze-classifier', action='store_true',
                                help="whether to freeze the classifier")
-    training_args.add_argument('--lr_scheduler_type', type=str, default='linear',
+    training_args.add_argument('--lr-scheduler-type', type=str, default='linear',
                                choices=['linear', 'cosine', 'cosine_with_restarts', 'polynomial', 'constant', 'constant_with_warmup'],
                                help='The scheduler type to use.')
     training_args.add_argument('--num_warmup_steps', type=int, default=0,
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                         help='name used to save results (default: "")')
     parser.add_argument('--groupid', type=str, default='default',
                         help='wandb group name.')
-    parser.add_argument('--result-dir', type=str, default='Results/vit/data',
+    parser.add_argument('--result-dir', type=str, default='Results/',
                         help='path to directory to save results (default: "Results/vit/data")')
     parser.add_argument('--gpu', type=int, default='0',
                         help='number of GPU device to use (default: 0)')
