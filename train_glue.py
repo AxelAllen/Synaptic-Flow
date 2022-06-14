@@ -107,11 +107,11 @@ def pre_train_eval_loop_glue(models, datasets, tokenizer, device, args, use_wand
 
         ## Transformer Trainer Arguments ##
         training_args = TrainingArguments(
-            output_dir="Results/bert/glue",
+            output_dir=f"Results/bert/glue/{task_name}",
             overwrite_output_dir=False,
             do_train=True,
             do_eval=True,
-            do_predict=False,
+            do_predict=True,
             evaluation_strategy="epoch",
             per_device_train_batch_size=args.train_batch_size,
             per_device_eval_batch_size=args.test_batch_size,

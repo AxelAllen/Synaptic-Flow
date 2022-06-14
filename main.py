@@ -67,9 +67,11 @@ if __name__ == '__main__':
                                help='The scheduler type to use.')
     training_args.add_argument('--num_warmup_steps', type=int, default=0,
                                 help='Number of steps for the warmup in the lr scheduler.')
+    training_args.add_argument('--max-sequence-length', type=int, default=256,
+                               help='maximum sequence length for BERT')
     # Pruning Hyperparameters
     pruning_args = parser.add_argument_group('pruning')
-    pruning_args.add_argument('--pruner', type=str, default='synflow', choices=['synflow', 'random', 'mag', 'snip', 'grasp'],
+    pruning_args.add_argument('--pruner', type=str, default='synflow-bert', choices=['synflow', 'synflow-bert', 'random', 'mag', 'snip', 'grasp'],
                               help='type of pruner to use.')
     pruning_args.add_argument('--compression', type=float, default=1.0,
                         help='quotient of prunable non-zero prunable parameters before and after pruning (default: 1.0)')

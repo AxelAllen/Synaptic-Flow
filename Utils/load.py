@@ -215,7 +215,8 @@ def pruner(pruner):
         'random' : Random,
         'mag' : Magnitude,
         'snip': SNIP,
-        'grasp': GraSP
+        'grasp': GraSP,
+        'synflow-bert': SynFlowBERT
     }
     return pruners[pruner]
 

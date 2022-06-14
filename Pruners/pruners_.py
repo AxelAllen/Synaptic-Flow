@@ -79,6 +79,53 @@ class SynFlow(Pruner):
 
         return scores
 
+class SynFlowBERT(Pruner):
+
+    def __init__(self, amount):
+        super(SynFlowBERT, self).__init__(amount)
+
+    def score(self, model, dataloader, loss,  device, prune_bias=False):
+
+        scores = {}
+
+        @torch.no_grad()
+        def linearize(model):
+            # model.double()
+            signs = {}
+            for name, param in model.state_dict().items():
+                signs[name] = torch.sign(param)
+                param.abs_()
+            return signs
+
+        @torch.no_grad()
+        def nonlinearize(model, signs):
+            # model.float()
+            for name, param in model.state_dict().items():
+                param.mul_(signs[name])
+
+        signs = linearize(model)
+
+        batch = next(iter(dataloader))
+        batch = batch.to(device)
+        #input_dim = list(data[0, :].shape)
+        #input = torch.ones([1] + input_dim).to(device)  # , dtype=torch.float64).to(device)
+        output = model(**batch)
+        logits = output.logits
+        torch.sum(logits).backward()
+
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                score = torch.clone(param.grad * param).detach().abs_()
+                param.grad.data.zero_()
+                scores.update({(module, pname): score})
+
+        nonlinearize(model, signs)
+
+        return scores
+
+
 class Random(Pruner):
     def __init__(self, amount):
         super(Random, self).__init__(amount)
