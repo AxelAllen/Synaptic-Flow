@@ -107,11 +107,12 @@ def run(args):
     ## Models ##
     models = {}
     for (task_name, label_dict), (_, dataset) in zip(labels.items(), glue.items()):
-        wandb.init(
-            project="bert_glue_test",
-            name=f"{task_name}",
-            config=vars(args)
-        )
+        if args.wandb:
+            wandb.init(
+                project="bert_glue_test",
+                name=f"{task_name}",
+                config=vars(args)
+            )
         is_regression = task_name == "stsb"
         config = AutoConfig.from_pretrained(
             "bert-base-uncased",
@@ -200,7 +201,7 @@ def run(args):
                                   schedule=args.compression_schedule,
                                   scope=args.mask_scope,
                                   sparsity=sparsity,
-                                  use_wandb=True)
+                                  use_wandb=args.wandb)
         prune_results.update({task_name: prune_result})
 
         for index in random.sample(range(len(train_dataset)), 3):
@@ -218,7 +219,7 @@ def run(args):
             else:
                 return {"accuracy": (preds == p.label_ids).astype(np.float32).mean().item()}
 
-
+        report_to = ["wandb"] if args.wandb else None
         training_args = TrainingArguments(
             output_dir=f"Results/bert/glue/{task_name}",
             overwrite_output_dir=True,
@@ -232,7 +233,7 @@ def run(args):
             weight_decay=args.weight_decay,
             num_train_epochs=args.pre_epochs,
             lr_scheduler_type=args.lr_scheduler_type,
-            report_to=["wandb"],
+            report_to=report_to,
             #save_strategy="epoch",
             #load_best_model_at_end=True,
             #metric_for_best_model=None,
