@@ -58,11 +58,16 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
                                 amount=sparse)
 
         ## Make pruning permanent ##
-        for module in filter(lambda p: prunable(p), model.modules()):
-            if hasattr(module, 'weight'):
-                prune_.remove(module, "weight")
-            if hasattr(module, "bias") and prune_bias is True:
-                prune_.remove(module, "bias")
+        if hasattr(model, 'bert'):
+            for module, _ in params:
+                if hasattr(module, 'weight'):
+                    prune_.remove(module, "weight")
+        else:
+            for module in filter(lambda p: prunable(p), model.modules()):
+                if hasattr(module, 'weight'):
+                    prune_.remove(module, "weight")
+                if hasattr(module, "bias") and prune_bias is True:
+                    prune_.remove(module, "bias")
 
 
     # make pruning permanent
