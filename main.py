@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--groupid', type=str, default='default',
                         help='wandb group name.')
     parser.add_argument('--result-dir', type=str, default='Results/',
-                        help='path to directory to save results (default: "Results/vit/data")')
+                        help='path to directory to save results (default: "Results/")')
     parser.add_argument('--gpu', type=int, default='0',
                         help='number of GPU device to use (default: 0)')
     parser.add_argument('--workers', type=int, default='4',

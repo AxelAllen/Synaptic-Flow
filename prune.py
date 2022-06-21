@@ -34,15 +34,30 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
             sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
         if use_wandb:
             wandb.log({"sparsity": sparse})
-        params = []
 
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
-                params.append((module, pname))
+        ## Prunable parameters ##
+        params = []
+        if hasattr(model, 'bert'):
+            for ii in range(12):
+                params.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                params.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                params.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+            params.append((model.bert.pooler.dense, 'weight'))
+        else:
+            for module in filter(lambda p: prunable(p), model.modules()):
+                for pname, param in module.named_parameters(recurse=False):
+                    if pname == "bias" and prune_bias is False:
+                        continue
+                    params.append((module, pname))
+        ## Prune ##
         prune_.global_unstructured(parameters=params, pruning_method=prune_method, importance_scores=importance_scores,
                                 amount=sparse)
+
+        ## Make pruning permanent ##
         for module in filter(lambda p: prunable(p), model.modules()):
             if hasattr(module, 'weight'):
                 prune_.remove(module, "weight")

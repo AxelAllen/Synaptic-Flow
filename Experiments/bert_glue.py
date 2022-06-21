@@ -29,14 +29,7 @@ def run(args):
 
     if args.wandb:
         wandb.login()
-        '''
-        wandb.init(
-            project="synflow",
-            name=f"{args.expid}",
-            group=f"{args.groupid}",
-            config=vars(args)
-            )
-        '''
+
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
     device = load.device(args.gpu)
@@ -46,19 +39,19 @@ def run(args):
     print('Loading GLUE dataset.')
 
     ## load GLUE datasets ##
-    # cola = load_dataset('glue', 'cola')
-    # sst2 = load_dataset('glue', 'sst2')
-    # mrpc = load_dataset('glue', 'mrpc')
-    # qqp = load_dataset('glue', 'qqp')
+    cola = load_dataset('glue', 'cola')
+    sst2 = load_dataset('glue', 'sst2')
+    mrpc = load_dataset('glue', 'mrpc')
+    qqp = load_dataset('glue', 'qqp')
     stsb = load_dataset('glue', 'stsb')
     mnli = load_dataset('glue', 'mnli')
     qnli = load_dataset('glue', 'qnli')
     rte = load_dataset('glue', 'rte')
     wnli = load_dataset('glue', 'wnli')
     #ax = load_dataset('glue', 'ax')
-    # glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
-    #        'wnli': wnli} #, 'ax': ax
-    glue = {'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte, 'wnli': wnli}
+    glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
+           'wnli': wnli} #, 'ax': ax
+    #glue = {'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte, 'wnli': wnli}
 
     # glue = {'cola': cola, 'sst2': sst2}
 
@@ -109,8 +102,9 @@ def run(args):
     for (task_name, label_dict), (_, dataset) in zip(labels.items(), glue.items()):
         if args.wandb:
             wandb.init(
-                project="bert_glue_test",
-                name=f"{task_name}",
+                project="Prune_BERT-GLUE",
+                name=f"{task_name}_{args.expid}",
+                group=f"{args.groupid}",
                 config=vars(args)
             )
         is_regression = task_name == "stsb"

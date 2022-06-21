@@ -117,6 +117,18 @@ class SynFlowBERT(Pruner):
         logits = output.logits
         torch.sum(logits).backward()
 
+        parameters_to_prune = []
+        for ii in range(12):
+            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+            parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+            parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+        parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+
+        '''
         for module in filter(lambda p: prunable(p), model.modules()):
             for pname, param in module.named_parameters(recurse=False):
                 if pname == "bias" and prune_bias is False:
@@ -124,6 +136,13 @@ class SynFlowBERT(Pruner):
                 score = torch.clone(param.grad * param).detach().abs_()
                 param.grad.data.zero_()
                 scores.update({(module, pname): score})
+        '''
+
+        for module, pname in parameters_to_prune:
+            param = module.weight
+            score = torch.clone(param.grad * param).detach().abs_()
+            param.grad.data.zero_()
+            scores.update({(module, pname): score})
 
         nonlinearize(model, signs)
 
@@ -136,12 +155,29 @@ class Random(Pruner):
 
     def score(self, model, dataloader, loss,  device, prune_bias=False):
         scores = {}
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
+        if hasattr(model, 'bert'):
+            parameters_to_prune = []
+            for ii in range(12):
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+            parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+            for module, pname in parameters_to_prune:
+                param = module.weight
                 scores.update({(module, pname): torch.randn_like(param)})
+        else:
+            for module in filter(lambda p: prunable(p), model.modules()):
+                for pname, param in module.named_parameters(recurse=False):
+                    if pname == "bias" and prune_bias is False:
+                        continue
+                    scores.update({(module, pname): torch.randn_like(param)})
         return scores
+
+
 
 class Magnitude(Pruner):
     def __init__(self, amount):
@@ -149,11 +185,26 @@ class Magnitude(Pruner):
 
     def score(self, model, dataloader, loss, device, prune_bias=False):
         scores = {}
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
+        if hasattr(model, 'bert'):
+            parameters_to_prune = []
+            for ii in range(12):
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+            parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+            for module, pname in parameters_to_prune:
+                param = module.weight
                 scores.update({(module, pname): torch.clone(param.data).detach().abs_()})
+        else:
+            for module in filter(lambda p: prunable(p), model.modules()):
+                for pname, param in module.named_parameters(recurse=False):
+                    if pname == "bias" and prune_bias is False:
+                        continue
+                    scores.update({(module, pname): torch.clone(param.data).detach().abs_()})
         return scores
 
 # Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
