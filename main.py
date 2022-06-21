@@ -116,6 +116,8 @@ if __name__ == '__main__':
                         help='name used to save results (default: "")')
     parser.add_argument('--groupid', type=str, default='default',
                         help='wandb group name.')
+    parser.add_argument('--projectid', type=str, default='Prune_BERT_GLUE',
+                        help='name of wandb project')
     parser.add_argument('--result-dir', type=str, default='Results/',
                         help='path to directory to save results (default: "Results/")')
     parser.add_argument('--gpu', type=int, default='0',

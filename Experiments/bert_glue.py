@@ -102,7 +102,7 @@ def run(args):
     for (task_name, label_dict), (_, dataset) in zip(labels.items(), glue.items()):
         if args.wandb:
             wandb.init(
-                project="Prune_BERT-GLUE",
+                project=f"{args.projectid}",
                 name=f"{task_name}_{args.expid}",
                 group=f"{args.groupid}",
                 config=vars(args)
