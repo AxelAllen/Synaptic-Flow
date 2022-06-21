@@ -39,21 +39,25 @@ def run(args):
     print('Loading GLUE dataset.')
 
     ## load GLUE datasets ##
-    cola = load_dataset('glue', 'cola')
-    sst2 = load_dataset('glue', 'sst2')
-    mrpc = load_dataset('glue', 'mrpc')
-    qqp = load_dataset('glue', 'qqp')
-    stsb = load_dataset('glue', 'stsb')
-    mnli = load_dataset('glue', 'mnli')
-    qnli = load_dataset('glue', 'qnli')
-    rte = load_dataset('glue', 'rte')
-    wnli = load_dataset('glue', 'wnli')
-    #ax = load_dataset('glue', 'ax')
-    glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
-           'wnli': wnli} #, 'ax': ax
-    #glue = {'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte, 'wnli': wnli}
+    if len(args.glue_dataset_list) > 0:
+        glue = {}
+        for dataset_name in args.glue_dataset_list:
+            dataset = load_dataset('glue', dataset_name)
+            glue.update({dataset_name: dataset})
+    else:
+        cola = load_dataset('glue', 'cola')
+        sst2 = load_dataset('glue', 'sst2')
+        mrpc = load_dataset('glue', 'mrpc')
+        qqp = load_dataset('glue', 'qqp')
+        stsb = load_dataset('glue', 'stsb')
+        mnli = load_dataset('glue', 'mnli')
+        qnli = load_dataset('glue', 'qnli')
+        rte = load_dataset('glue', 'rte')
+        wnli = load_dataset('glue', 'wnli')
+        #ax = load_dataset('glue', 'ax')
+        glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
+               'wnli': wnli} #, 'ax': ax
 
-    # glue = {'cola': cola, 'sst2': sst2}
 
     ## map task to keys ##
     task_to_keys = {

@@ -18,6 +18,8 @@ if __name__ == '__main__':
     training_args.add_argument('--dataset', type=str, default='mnist',
                         choices=['mnist','cifar10','cifar100','tiny-imagenet','imagenet'],
                         help='dataset (default: mnist)')
+    training_args.add_argument('--glue-dataset-list', type=str, nargs='*', default=[],
+                               help='list of GLUE datasets to use, default [] uses all datasets')
     training_args.add_argument('--dataset-length', type=int, default=None,
                                help='create a subset of dataset of specified length')
     training_args.add_argument('--model', type=str, default='ViT-Ti', choices=['fc','conv',
