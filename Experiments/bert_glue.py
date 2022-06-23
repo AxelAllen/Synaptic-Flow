@@ -211,11 +211,8 @@ def run(args):
             result = metric.compute(predictions=preds, references=p.label_ids)
             if len(result) > 1:
                 result["combined_score"] = np.mean(list(result.values())).item()
-                return result
-            elif is_regression:
-                return {"mse": ((preds - p.label_ids) ** 2).mean().item()}
-            else:
-                return {"accuracy": (preds == p.label_ids).astype(np.float32).mean().item()}
+            return result
+
 
         report_to = ["wandb"] if args.wandb else None
         training_args = TrainingArguments(
