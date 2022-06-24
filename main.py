@@ -148,12 +148,14 @@ if __name__ == '__main__':
         try:
             os.makedirs(result_dir)
         except FileExistsError:
+            print("Overwriting Experiment '{}' with expid '{}'".format(args.experiment, args.expid))
+            '''
             val = ""
             while val not in ['yes', 'no']:
                 val = input("Experiment '{}' with expid '{}' exists.  Overwrite (yes/no)? ".format(args.experiment, args.expid))
             if val == 'no':
                 quit()
-
+            '''
     ## Save Args ##
     if args.save:
         with open(args.result_dir + '/args.json', 'w') as f:
