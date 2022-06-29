@@ -187,7 +187,8 @@ def run(args):
         dataloader = DataLoader(dataset=train_dataset,
                                 shuffle=True,
                                 collate_fn=default_data_collator,
-                                batch_size=args.train_batch_size)
+                                batch_size=args.train_batch_size,
+                                pin_memory=True)
         #loss_func = nn.CrossEntropyLoss()
         sparsity = 10 ** (-float(args.compression))
         prune_result = prune_loop(model=model,
