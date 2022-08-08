@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from sam.sam import SAM
-import GPUtil
+#import GPUtil
 import wandb
 
 def train(model, loss, optimizer, dataloader, device, epoch, verbose, log_interval=10):
@@ -57,7 +57,7 @@ def pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_lo
     test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
     rows = [[np.nan, test_loss, accuracy1, accuracy5]]
     for epoch in tqdm(range(epochs)):
-        GPUtil.showUtilization()
+        # GPUtil.showUtilization()
         train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose)
         if use_wandb:
             wandb.log({"pre_train_loss": train_loss})
@@ -74,7 +74,7 @@ def post_train_eval_loop(model, loss, optimizer, scheduler, train_loader, test_l
     test_loss, accuracy1, accuracy5 = eval(model, loss, test_loader, device, verbose)
     rows = [[np.nan, test_loss, accuracy1, accuracy5]]
     for epoch in tqdm(range(epochs)):
-        GPUtil.showUtilization()
+        # GPUtil.showUtilization()
         train_loss = train(model, loss, optimizer, train_loader, device, epoch, verbose)
         if use_wandb:
             wandb.log({"post_train_loss": train_loss})

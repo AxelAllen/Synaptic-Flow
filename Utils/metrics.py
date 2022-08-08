@@ -5,20 +5,25 @@ import pandas as pd
 from Utils.generator import prunable
 import wandb
 
-def global_sparsity(model, prune_bias=False):
+def global_sparsity(model, prunable_parameters=None, prune_bias=False):
     r"""Returns remaining and total number of prunable parameters.
     """
     zero_params, total_params = 0, 0
-    for module in filter(lambda p: prunable(p), model.modules()):
-        for pname, param in module.named_parameters():
-            if pname == "weight" or (pname == "bias" and prune_bias is True):
-                zero_params += float(torch.sum(param == 0.))
-                total_params += float(param.nelement())
-    sparsity = 1 - (zero_params / total_params)
-    remaining_params = total_params - zero_params
-    if np.abs(remaining_params - total_params*sparsity) >= 5:
-        print("ERROR: {} prunable parameters remaining, expected {}".format(remaining_params, total_params*sparsity))
-        quit()
+    if prunable_parameters is None:
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters():
+                if pname == "weight" or (pname == "bias" and prune_bias is True):
+                    zero_params += float(torch.sum(param == 0.))
+                    total_params += float(param.nelement())
+    else:
+        for param, _ in prunable_parameters:
+            zero_params += float(torch.sum(param.weight == 0.))
+            total_params += float(param.weight.nelement())
+    sparsity = zero_params / total_params
+    # remaining_params = total_params - zero_params
+    # if np.abs(remaining_params - total_params*sparsity) >= 5:
+    #     print("ERROR: {} prunable parameters remaining, expected {}".format(remaining_params, total_params*sparsity))
+    #     quit()
     return sparsity
 
 def summary(model, scores):
@@ -34,7 +39,7 @@ def summary(model, scores):
                 sparsity = 1 - (zero_params / total_params)
                 score = scores[(module, pname)].detach().cpu().numpy()
             else:
-                sparsity = 1.0
+                sparsity = 0.0
                 score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
             score_mean = score.mean()

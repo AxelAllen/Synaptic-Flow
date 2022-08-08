@@ -1,0 +1,14 @@
+--experiment glue --expid test-run-sflow --glue-dataset-list cola --train-batch-size 16 --test-batch-size 16 --pre-epochs 0 --post-epochs 0 --lr 0.00002 --max-sequence-length 32 --pruner synflow-bert --compression 0.1 --prune-epochs 1 --prune-batch-size 2 --verbose
+
+--experiment glue --expid test-run-mag --glue-dataset-list cola --train-batch-size 16 --test-batch-size 16 --pre-epochs 0 --post-epochs 0 --lr 0.00002 --max-sequence-length 32 --pruner mag --compression 0.1 --prune-epochs 1 --prune-batch-size 2 --verbose
+
+--experiment singleshot --expid test-run-sflow-linear --model fc --model-class default --pre-epochs 0 --post-epochs 0 --prune-epochs 1 --pruner synflow --compression 0.1 --no-cuda --verbose
+
+--experiment singleshot --expid test-run-sflow-conv --model conv --model-class default --pre-epochs 0 --post-epochs 0 --prune-epochs 1 --pruner synflow --compression 0.1 --no-cuda --verbose
+
+--experiment singleshot --expid test-run-sflow-resnet --dataset tiny-imagenet --model resnet50 --model-class tinyimagenet --pre-epochs 0 --post-epochs 0 --prune-epochs 1 --pruner synflow --compression 0.1 --no-cuda --verbose
+
+--experiment singleshot --expid test-run-sflow-vit --dataset tiny-imagenet --model ViT-B_16 --model-class transformer --pre-epochs 0 --post-epochs 0 --prune-epochs 1 --prune-batch-size 64 --pruner synflow --compression 0.1 --no-cuda --verbose
+
+
+--experiment glue --expid test-run-sflow-whole-glue --pre-epochs 0 --post-epochs 0 --lr 0.00002 --max-sequence-length 128 --pruner synflow-bert --compression 0.5 --prune-epochs 10 --prune-batch-size 32 --verbose

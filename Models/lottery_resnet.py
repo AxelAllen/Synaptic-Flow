@@ -7,6 +7,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from Layers import layers
+
 
 
 class Block(nn.Module):
@@ -28,7 +30,7 @@ class Block(nn.Module):
                 nn.BatchNorm2d(f_out)
             )
         else:
-            self.shortcut = nn.Identity2d(f_in)
+            self.shortcut = layers.Identity2d(f_in)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))

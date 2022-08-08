@@ -106,15 +106,10 @@ class SynFlowBERT(Pruner):
         signs = linearize(model)
 
         batch = next(iter(dataloader))
-        '''
-        for name, tensor in batch.items():
-            tensor.to(device)
-        '''
-        input = torch.ones(batch["input_ids"].shape).long()
-        attn_mask = torch.ones(batch["attention_mask"].shape)
 
-        input = input.to(device)
-        attn_mask = attn_mask.to(device)
+
+        input = torch.ones(batch["input_ids"].shape).long().to(device)
+        attn_mask = torch.ones(batch["attention_mask"].shape).to(device)
 
         output = model(input_ids=input,
                        attention_mask=attn_mask)
