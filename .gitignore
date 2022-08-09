@@ -157,5 +157,4 @@ wandb/
 pretrained_weights/
 Results/
 Result/vit/
-Layers/
 Utils/preprocess_glue.py
