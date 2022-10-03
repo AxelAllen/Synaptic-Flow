@@ -5,9 +5,8 @@ import prune_
 from Pruners.pruners_ import *
 from Utils.generator import prunable
 from Utils import load
-from Utils.metrics import global_sparsity, summary
+from Utils.metrics import global_sparsity, summary, unit_score_sum, average_layer_score
 import wandb
-
 
 def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule, scope, epochs,
                reinitialize=False, train_mode=False, shuffle=False, invert=False, prune_bias=False, use_wandb=False):
@@ -19,8 +18,8 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     # Set model to train or eval mode
     model.to(device)
     model.train()
-    if not train_mode:
-        model.eval()
+    # if not train_mode:
+    #     model.eval()
     all_summary_results = {}
     importance_scores = None
     # Prune model
@@ -39,6 +38,18 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
             params.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
 
         params.append((model.bert.pooler.dense, 'weight'))
+    elif hasattr(model, 'reformer'):
+        for ii in range(6):
+            if ii % 2 == 0:
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+            else:
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+            params.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+            params.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+            params.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
     else:
         for module in filter(lambda p: prunable(p), model.modules()):
             for pname, param in module.named_parameters(recurse=False):
@@ -50,10 +61,10 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
         #sparse = sparsity
         sparse = 1.0 - (sparsity ** ((epoch + 1) / epochs))
-        # if schedule == 'exponential':
-        #     sparse = 1.0 - (sparsity**((epoch + 1) / epochs))
-        # elif schedule == 'linear':
-        #     sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
+        if schedule == 'exponential':
+            sparse = 1.0 - (sparsity**((epoch + 1) / epochs))
+        elif schedule == 'linear':
+             sparse = 1.0 - (1.0 - sparsity)*((epoch + 1) / epochs)
         if use_wandb:
             wandb.log({"sparsity": sparse})
 
@@ -63,7 +74,7 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
 
 
         ## Make pruning permanent ##
-        if hasattr(model, 'bert'):
+        if hasattr(model, 'bert') or hasattr(model, 'reformer'):
             for module, _ in params:
                 if hasattr(module, 'weight'):
                     prune_.remove(module, "weight")
@@ -79,14 +90,10 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         all_summary_results.update({epoch: summary_results})
 
     if epochs > 0:
-        ''''
-        # make pruning permanent
-        for module in filter(lambda p: prunable(p), model.modules()):
-            if hasattr(module, 'weight'):
-                prune_.remove(module, "weight")
-            if hasattr(module, "bias") and prune_bias is True:
-                prune_.remove(module, "bias")
-        '''
+        in_scores, out_scores = unit_score_sum(model, importance_scores)
+        unit_scores = (in_scores, out_scores)
+        average_layers_scores = average_layer_score(importance_scores, params)
+
         # Reainitialize weights
         if reinitialize:
             model._initialize_weights()
@@ -98,6 +105,6 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         if use_wandb:
             wandb.log({"global_sparsity_after_pruning": glob_sparsity})
 
-        return all_summary_results
+        return all_summary_results, unit_scores, average_layers_scores
     else:
         return 0

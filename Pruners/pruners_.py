@@ -123,15 +123,28 @@ class SynFlowBERT(Pruner):
         torch.sum(logits).backward()
 
         parameters_to_prune = []
-        for ii in range(12):
-            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
-            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
-            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
-            parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
-            parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
-            parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+        if hasattr(model, 'bert'):
+            for ii in range(12):
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
 
-        parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+            parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+        elif hasattr(model, 'reformer'):
+            for ii in range(6):
+                if ii % 2 == 0:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                else:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
 
         '''
         for module in filter(lambda p: prunable(p), model.modules()):
@@ -160,6 +173,7 @@ class Random(Pruner):
 
     def score(self, model, dataloader, loss,  device, prune_bias=False):
         scores = {}
+
         if hasattr(model, 'bert'):
             parameters_to_prune = []
             for ii in range(12):
@@ -171,6 +185,22 @@ class Random(Pruner):
                 parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
 
             parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+            for module, pname in parameters_to_prune:
+                param = module.weight
+                scores.update({(module, pname): torch.randn_like(param)})
+        elif hasattr(model, 'reformer'):
+            parameters_to_prune = []
+            for ii in range(6):
+                if ii % 2 == 0:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                else:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
             for module, pname in parameters_to_prune:
                 param = module.weight
                 scores.update({(module, pname): torch.randn_like(param)})
@@ -201,6 +231,22 @@ class Magnitude(Pruner):
                 parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
 
             parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+            for module, pname in parameters_to_prune:
+                param = module.weight
+                scores.update({(module, pname): torch.clone(param.data).detach().abs_()})
+        elif hasattr(model, 'reformer'):
+            parameters_to_prune = []
+            for ii in range(6):
+                if ii % 2 == 0:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                else:
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                    parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
             for module, pname in parameters_to_prune:
                 param = module.weight
                 scores.update({(module, pname): torch.clone(param.data).detach().abs_()})

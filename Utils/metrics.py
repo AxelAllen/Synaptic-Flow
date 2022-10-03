@@ -56,3 +56,92 @@ def summary(model, scores):
                'score sum', 'score abs mean', 'score abs variance', 'score abs sum', 'prunable']
     return pd.DataFrame(rows, columns=columns)
 
+## Compute per Neuron Score ##
+def unit_score_sum(model, scores):
+    in_scores = []
+    out_scores = []
+    if hasattr(model, 'bert'):
+        params = []
+        for ii in range(12):
+            params.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+            params.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+            params.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+            params.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+            params.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+            params.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+        params.append((model.bert.pooler.dense, 'weight'))
+
+        for param, pname in params:
+            score = scores[(param, pname)]
+            in_scores.append(score.sum(axis=1))
+            out_scores.append(score.sum(axis=0))
+
+    elif hasattr(model, 'reformer'):
+        params = []
+        for ii in range(6):
+            '''
+            if ii % 2 == 0:
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+            else:
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+            '''
+            params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+            params.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+            params.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+            params.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
+        for param, pname in params:
+            score = scores[(param, pname)]
+            in_scores.append(score.sum(axis=1))
+            out_scores.append(score.sum(axis=0))
+    else:
+        for name, module in model.named_modules():
+            if isinstance(module, nn.Linear):
+                W = module.weight
+                b = module.bias
+
+                W_score = scores[id(W)].detach().cpu().numpy()
+                b_score = scores[id(b)].detach().cpu().numpy()
+
+                in_scores.append(W_score.sum(axis=1) + b_score)
+                out_scores.append(W_score.sum(axis=0))
+            if isinstance(module, nn.Conv2d):
+                W = module.weight
+                W_score = scores[id(W)].detach().cpu().numpy()
+                in_score = W_score.sum(axis=(1, 2, 3))
+                out_score = W_score.sum(axis=(0, 2, 3))
+
+                if module.bias is not None:
+                    b = module.bias
+                    b_score = scores[id(b)].detach().cpu().numpy()
+                    in_score += b_score
+
+                in_scores.append(in_score)
+                out_scores.append(out_score)
+
+    in_scores = np.concatenate(in_scores[:-1])
+    out_scores = np.concatenate(out_scores[1:])
+    # in_scores = np.concatenate(in_scores)
+    # out_scores = np.concatenate(out_scores)
+    return in_scores, out_scores
+
+## Compute Average Layer Score ##
+def average_layer_score(scores, prunable_parameters):
+
+    layerwise_scores = {}
+    for i, (module, name) in enumerate(prunable_parameters):
+        W = module.weight
+        W_score = scores[(module, name)]
+        score_sum = W_score.sum()
+        num_elements = np.prod(W.shape)
+        inv_size = 1.0 / num_elements
+        average_score = np.abs(score_sum / num_elements)
+        layerwise_scores.update({i: {
+            'average_score': average_score,
+            'inv_size': inv_size
+            }})
+    return layerwise_scores
+

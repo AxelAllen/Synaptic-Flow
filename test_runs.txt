@@ -12,3 +12,5 @@
 
 
 --experiment glue --expid test-run-sflow-whole-glue --pre-epochs 0 --post-epochs 0 --lr 0.00002 --max-sequence-length 128 --pruner synflow-bert --compression 0.5 --prune-epochs 10 --prune-batch-size 32 --verbose
+
+--experiment glue --expid sflow-bert-unit-scores --glue-dataset-list cola --train-batch-size 16 --test-batch-size 16 --pre-epochs 0 --post-epochs 0 --lr 0.00002 --max-sequence-length 32 --pruner synflow-bert --compression 0.1 --prune-epochs 1 --prune-batch-size 2 --verbose

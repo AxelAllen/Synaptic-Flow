@@ -42,29 +42,46 @@ def run(args):
     def unit_score_sum(model, scores, compute_linear=False):
         in_scores = []
         out_scores = []
-        for name, module in model.named_modules():
-            if (isinstance(module, nn.Linear) and compute_linear):
-                W = module.weight
-                b = module.bias
+        if hasattr(model, 'bert'):
+            params = []
+            for ii in range(12):
+                params.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                params.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                params.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                params.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
 
-                W_score = scores[id(W)].detach().cpu().numpy()
-                b_score = scores[id(b)].detach().cpu().numpy()
+            params.append((model.bert.pooler.dense, 'weight'))
 
-                in_scores.append(W_score.sum(axis=1) + b_score)
-                out_scores.append(W_score.sum(axis=0))
-            if isinstance(module, nn.Conv2d):
-                W = module.weight
-                W_score = scores[id(W)].detach().cpu().numpy()
-                in_score = W_score.sum(axis=(1,2,3)) 
-                out_score = W_score.sum(axis=(0,2,3))
-
-                if module.bias is not None:
+            for param, pname in params:
+                score = scores[(param, pname)]
+                in_scores.append(score.sum(axis=1))
+                out_scores.append(score.sum(axis=0))
+        else:
+            for name, module in model.named_modules():
+                if (isinstance(module, nn.Linear) and compute_linear):
+                    W = module.weight
                     b = module.bias
+
+                    W_score = scores[id(W)].detach().cpu().numpy()
                     b_score = scores[id(b)].detach().cpu().numpy()
-                    in_score += b_score
-                
-                in_scores.append(in_score)
-                out_scores.append(out_score)
+
+                    in_scores.append(W_score.sum(axis=1) + b_score)
+                    out_scores.append(W_score.sum(axis=0))
+                if isinstance(module, nn.Conv2d):
+                    W = module.weight
+                    W_score = scores[id(W)].detach().cpu().numpy()
+                    in_score = W_score.sum(axis=(1,2,3))
+                    out_score = W_score.sum(axis=(0,2,3))
+
+                    if module.bias is not None:
+                        b = module.bias
+                        b_score = scores[id(b)].detach().cpu().numpy()
+                        in_score += b_score
+
+                    in_scores.append(in_score)
+                    out_scores.append(out_score)
 
         in_scores = np.concatenate(in_scores[:-1])
         out_scores = np.concatenate(out_scores[1:])

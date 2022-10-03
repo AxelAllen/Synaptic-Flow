@@ -13,6 +13,9 @@ from transformers import (
     BertConfig,
     BertForSequenceClassification,
     BertTokenizer,
+    ReformerForSequenceClassification,
+    ReformerTokenizer,
+    ReformerConfig,
     PretrainedConfig,
     default_data_collator,
     Trainer,
@@ -113,6 +116,22 @@ def run(args):
                 config=vars(args)
             )
         is_regression = task_name == "stsb"
+
+        config = AutoConfig.from_pretrained(
+            "google/reformer-crime-and-punishment", 
+            num_labels=label_dict["num_labels"],
+            finetuning_task=task_name,
+            axial_pos_embds=False
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            "google/reformer-crime-and-punishment" 
+        )
+        tokenizer.pad_token = tokenizer.eos_token
+        model = AutoModelForSequenceClassification.from_pretrained(
+            "google/reformer-crime-and-punishment",
+            config=config
+        )
+        '''
         config = AutoConfig.from_pretrained(
             "bert-base-uncased",
             num_labels=label_dict["num_labels"],
@@ -125,7 +144,7 @@ def run(args):
             "bert-base-uncased",
             config=config
         )
-
+        '''
         sentence1_key, sentence2_key = task_to_keys[task_name]
         padding = "max_length"
 
@@ -192,7 +211,7 @@ def run(args):
                                 pin_memory=True)
         #loss_func = nn.CrossEntropyLoss()
         sparsity = 10 ** (-float(args.compression))
-        prune_results = prune_loop(model=model,
+        prune_results, unit_scores, avg_layer_scores = prune_loop(model=model,
                                   prune_class=args.pruner,
                                   dataloader=dataloader,
                                   loss=None,
@@ -213,6 +232,11 @@ def run(args):
 
         with open(f"{result_dir}/prune-results.pickle", "wb") as w:
             pickle.dump(prune_results, w, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"{result_dir}/unit-scores.pickle", "wb") as w:
+            pickle.dump(unit_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"{result_dir}/layerwise-scores.pickle", "wb") as w:
+            pickle.dump(avg_layer_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
+
         '''
         with open(f"{result_dir}/importance-scores.pickle", "wb") as w:
             pickle.dump(importance_scores, w, protocol=pickle.HIGHEST_PROTOCOL)

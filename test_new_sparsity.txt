@@ -1,0 +1,1 @@
+python main.py --experiment glue --result-dir Results/synflow --expid compression-05 --groupid synflow-fixed-sparsity --train-batch-size 16 --test-batch-size 16 --pre-epochs 3 --post-epochs 0 --prune-epochs 100 --lr 0.00002 --max-sequence-length 256 --pruner synflow-bert --compression 0.5 --prune-batch-size 16 --verbose --wandb
