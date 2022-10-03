@@ -74,8 +74,8 @@ def unit_score_sum(model, scores):
 
         for param, pname in params:
             score = scores[(param, pname)]
-            in_scores.append(score.sum(axis=1))
-            out_scores.append(score.sum(axis=0))
+            in_scores.append(score.sum(axis=1).detach().cpu().numpy())
+            out_scores.append(score.sum(axis=0).detach().cpu().numpy())
 
     elif hasattr(model, 'reformer'):
         params = []
@@ -95,8 +95,8 @@ def unit_score_sum(model, scores):
             params.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
         for param, pname in params:
             score = scores[(param, pname)]
-            in_scores.append(score.sum(axis=1))
-            out_scores.append(score.sum(axis=0))
+            in_scores.append(score.sum(axis=1).detach().cpu().numpy())
+            out_scores.append(score.sum(axis=0).detach().cpu().numpy())
     else:
         for name, module in model.named_modules():
             if isinstance(module, nn.Linear):
