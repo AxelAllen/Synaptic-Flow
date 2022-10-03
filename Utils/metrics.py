@@ -135,7 +135,7 @@ def average_layer_score(scores, prunable_parameters):
     for i, (module, name) in enumerate(prunable_parameters):
         W = module.weight
         W_score = scores[(module, name)]
-        score_sum = W_score.sum()
+        score_sum = W_score.sum().detach().cpu().numpy()
         num_elements = np.prod(W.shape)
         inv_size = 1.0 / num_elements
         average_score = np.abs(score_sum / num_elements)
