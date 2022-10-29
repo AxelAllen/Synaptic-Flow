@@ -1,3 +1,5 @@
+import functools
+
 import torch
 from torch import nn
 import prune_
@@ -261,6 +263,9 @@ class Magnitude(Pruner):
 def snip_forward_linear(self, x):
     return F.linear(x, self.weight * self.weight_mask, self.bias)
 
+def forward_linear(self, x):
+    return F.linear(x, self.weight, self.bias)
+
 # Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
 class SNIP(Pruner):
 
@@ -270,6 +275,7 @@ class SNIP(Pruner):
     def score(self, model, dataloader, loss, device, prune_bias=False):
 
         scores = {}
+
 
         parameters_to_prune = []
         if hasattr(model, 'bert'):
@@ -344,9 +350,11 @@ class SNIP(Pruner):
             if pname == "weight":
                 scores[(module, pname)] = scores[(module, pname)].div_(norm)
 
-        for module, _ in parameters_to_prune:
+        for module, pname in parameters_to_prune:
             if hasattr(module, 'weight_mask'):
                 delattr(module, 'weight_mask')
+            if isinstance(module, nn.Linear):
+                module.forward = types.MethodType(forward_linear, module)
 
         return scores
 
