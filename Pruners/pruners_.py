@@ -7,9 +7,9 @@ import types
 
 class Pruner(prune_.BasePruningMethod):
     '''
-        options:
-        global, structured, unstructured
-        '''
+    options:
+    global, structured, unstructured
+    '''
     PRUNING_TYPE = "unstructured"
 
     def __init__(self, amount):
@@ -258,59 +258,97 @@ class Magnitude(Pruner):
                     scores.update({(module, pname): torch.clone(param.data).detach().abs_()})
         return scores
 
+def snip_forward_linear(self, x):
+    return F.linear(x, self.weight * self.weight_mask, self.bias)
+
 # Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
 class SNIP(Pruner):
 
     def __init__(self, amount):
         super(SNIP, self).__init__(amount)
 
-    def snip_forward_conv2d(self, x):
-        return F.conv2d(x, self.weight * self.weight_mask, self.bias,
-                        self.stride, self.padding, self.dilation, self.groups)
-
-    def snip_forward_linear(self, x):
-        return F.linear(x, self.weight * self.weight_mask, self.bias)
-
     def score(self, model, dataloader, loss, device, prune_bias=False):
 
         scores = {}
 
+        parameters_to_prune = []
+        if hasattr(model, 'bert'):
+            for ii in range(12):
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+            parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+        elif hasattr(model, 'reformer'):
+            for ii in range(6):
+                if ii % 2 == 0:
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                else:
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
+
         # allow masks to have gradient
-        for module in filter(lambda p: prunable(p), model.modules()):
+        for module, pname in parameters_to_prune:
             if hasattr(module, "weight"):
                 module.weight_mask = nn.Parameter(torch.ones_like(module.weight))
                 module.weight_mask.requires_grad = True
-
-            # Override the forward methods:
-            if isinstance(module, nn.Conv2d):
-                module.forward = types.MethodType(self.snip_forward_conv2d, module)
-
+                #module.weight.requires_grad = False
             if isinstance(module, nn.Linear):
-                module.forward = types.MethodType(self.snip_forward_linear, module)
+                module.forward = types.MethodType(snip_forward_linear, module)
 
         # compute gradient
-        for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            loss(output, target).backward()
+        for batch_idx, batch in enumerate(dataloader):
+        #batch = next(iter(dataloader))
+            input = batch["input_ids"]
+            attn_mask = batch["attention_mask"]
+            labels = batch["labels"]
+
+            input = input.to(device)
+            attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
+
+            output = model(input_ids=input,
+                           attention_mask=attn_mask,
+                           labels=labels)
+
+            L = output.loss
+            L.backward()
 
         # calculate score |g * theta|
-            for module in filter(lambda p: prunable(p), model.modules()):
-                for pname, param in module.named_parameters(recurse=False):
-                    if pname == "weight":
-                        score = module.weight_mask.grad.detach().abs()
-                        scores.update({(module, pname): score})
-                        param.grad.data.zero_()
-                        module.weight_mask.grad.data.zero_()
-                        module.weight_mask.requires_grad = False
+        for module, pname in parameters_to_prune:
+            if pname == "weight":
+                param = module.weight
+                score = module.weight_mask.grad.detach().abs()
+                scores.update({(module, pname): score})
+                param.grad.data.zero_()
+                module.weight_mask.grad.data.zero_()
+                module.weight_mask.requires_grad = False
 
         # normalize score
         all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
         norm = torch.sum(all_scores)
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "weight":
-                    scores[(module, pname)] = scores[(module, pname)].div_norm()
+        for module, pname in parameters_to_prune:
+            if pname == "weight":
+                scores[(module, pname)] = scores[(module, pname)].div_(norm)
+
+        for module, _ in parameters_to_prune:
+            if hasattr(module, 'weight_mask'):
+                delattr(module, 'weight_mask')
+
+        return scores
 
 # Based on https://github.com/alecwangcq/GraSP/blob/master/pruner/GraSP.py#L49
 class GraSP(Pruner):
@@ -322,45 +360,97 @@ class GraSP(Pruner):
     def score(self, model, dataloader, loss,  device, prune_bias=False):
 
         scores = {}
+
+        parameters_to_prune = []
+        if hasattr(model, 'bert'):
+            for ii in range(12):
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
+                parameters_to_prune.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+
+            parameters_to_prune.append((model.bert.pooler.dense, 'weight'))
+        elif hasattr(model, 'reformer'):
+            for ii in range(6):
+                if ii % 2 == 0:
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                else:
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
+                    parameters_to_prune.append(
+                        (model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
+                parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
+
         # first gradient vector without computational graph
         stopped_grads = 0
-        for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
-            output = model(data) / self.temp
-            L = loss(output, target)
+        for batch_idx, batch in enumerate(dataloader):
+            #batch = next(iter(dataloader))
+            input = batch["input_ids"]
+            attn_mask = batch["attention_mask"]
+            labels = batch["labels"]
 
-            grads = torch.autograd.grad(L, [param for param in filter(lambda p: prunable(p), model.parameters())],
+            input = input.to(device)
+            attn_mask = attn_mask.to(device)
+
+            output = model(input_ids=input,
+                           attention_mask=attn_mask)
+
+            logits = output.logits / self.temp
+
+            L = loss(logits, labels)
+
+            grads = torch.autograd.grad(L, [param.weight for (param, _) in parameters_to_prune],
                                         create_graph=False)
             flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
             stopped_grads += flatten_grads
 
         # second gradient vector with computational graph
-        for batch_idx, (data, target) in enumerate(dataloader):
-            data, target = data.to(device), target.to(device)
-            output = model(data) / self.temp
-            L = loss(output, target)
+        for batch_idx, batch in enumerate(dataloader):
+            #batch = next(iter(dataloader))
+            input = batch["input_ids"]
+            attn_mask = batch["attention_mask"]
+            labels = batch["labels"]
 
-            grads = torch.autograd.grad(L, [param for param in filter(lambda p: prunable(p), model.parameters())],
-                                        create_graph=False)
+            input = input.to(device)
+            attn_mask = attn_mask.to(device)
+
+            output = model(input_ids=input,
+                           attention_mask=attn_mask)
+
+            logits = output.logits / self.temp
+
+            L = loss(logits, labels)
+
+            grads = torch.autograd.grad(L, [param.weight for (param, _) in parameters_to_prune],
+                                        create_graph=True)
             flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
 
             gnorm = (stopped_grads * flatten_grads).sum()
             gnorm.backward()
 
         # calculate score Hg * theta (negate to remove top percent)
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
-                score = torch.clone(param.grad * param.data).detach()
-                scores.update({(module, pname): score})
-                param.grad.data.zero_()
+        for module, pname in parameters_to_prune:
+            param = module.weight
+            if pname == "bias" and prune_bias is False:
+                continue
+            score = torch.clone(param.grad * param.data).detach()
+            scores.update({(module, pname): score})
+            param.grad.data.zero_()
 
         # normalize score
         all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
         norm = torch.abs(torch.sum(all_scores)) + self.eps
-        for module in filter(lambda p: prunable(p), model.modules()):
-            for pname, param in module.named_parameters(recurse=False):
-                if pname == "bias" and prune_bias is False:
-                    continue
-                scores[(module, pname)] = scores[(module, pname)].div_norm()
+        for module, pname in parameters_to_prune:
+            if pname == "bias" and prune_bias is False:
+                continue
+            scores[(module, pname)] = scores[(module, pname)].div_(norm)
+        return scores

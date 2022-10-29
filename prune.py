@@ -57,8 +57,14 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
                     continue
                 params.append((module, pname))
 
+
     for epoch in tqdm(range(epochs)):
         importance_scores = pruner.score(model, dataloader, loss, device, prune_bias)
+        if epoch == 0:
+            in_scores, out_scores = unit_score_sum(model, importance_scores)
+            unit_scores = (in_scores, out_scores)
+            average_layers_scores = average_layer_score(importance_scores, params)
+
         #sparse = sparsity
         sparse = 1.0 - (sparsity ** ((epoch + 1) / epochs))
         if schedule == 'exponential':
@@ -89,11 +95,6 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         summary_results = summary(model, importance_scores)
         all_summary_results.update({epoch: summary_results})
 
-    if epochs > 0:
-        in_scores, out_scores = unit_score_sum(model, importance_scores)
-        unit_scores = (in_scores, out_scores)
-        average_layers_scores = average_layer_score(importance_scores, params)
-
         # Reainitialize weights
         if reinitialize:
             model._initialize_weights()
@@ -105,6 +106,4 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
         if use_wandb:
             wandb.log({"global_sparsity_after_pruning": glob_sparsity})
 
-        return all_summary_results, unit_scores, average_layers_scores
-    else:
-        return 0
+    return all_summary_results, unit_scores, average_layers_scores

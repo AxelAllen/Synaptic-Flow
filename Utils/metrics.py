@@ -57,25 +57,25 @@ def summary(model, scores):
     return pd.DataFrame(rows, columns=columns)
 
 ## Compute per Neuron Score ##
-def unit_score_sum(model, scores):
+def unit_score_sum(model, scores, concatenate_scores=False, layers=1):
     in_scores = []
     out_scores = []
     if hasattr(model, 'bert'):
-        params = []
-        for ii in range(12):
-            params.append((model.bert.encoder.layer[ii].attention.self.query, 'weight'))
-            params.append((model.bert.encoder.layer[ii].attention.self.key, 'weight'))
-            params.append((model.bert.encoder.layer[ii].attention.self.value, 'weight'))
-            params.append((model.bert.encoder.layer[ii].attention.output.dense, 'weight'))
-            params.append((model.bert.encoder.layer[ii].intermediate.dense, 'weight'))
-            params.append((model.bert.encoder.layer[ii].output.dense, 'weight'))
+        params = {}
+        for ii in range(layers):
+            params.update({f"layer[{ii}].attention.self.query": (model.bert.encoder.layer[ii].attention.self.query, 'weight')})
+            params.update({f"layer[{ii}].attention.self.key": (model.bert.encoder.layer[ii].attention.self.key, 'weight')})
+            params.update({f"layer[{ii}].attention.self.value": (model.bert.encoder.layer[ii].attention.self.value, 'weight')})
+            params.update({f"layer[{ii}].attention.output.dense": (model.bert.encoder.layer[ii].attention.output.dense, 'weight')})
+            params.update({f"layer[{ii}].intermediate.dense": (model.bert.encoder.layer[ii].intermediate.dense, 'weight')})
+            params.update({f"layer[{ii}].output.dense": (model.bert.encoder.layer[ii].output.dense, 'weight')})
 
-        params.append((model.bert.pooler.dense, 'weight'))
+        params.update({"pooler.dense": (model.bert.pooler.dense, 'weight')})
 
-        for param, pname in params:
+        for module_name, (param, pname) in params.items():
             score = scores[(param, pname)]
-            in_scores.append(score.sum(axis=1).detach().cpu().numpy())
-            out_scores.append(score.sum(axis=0).detach().cpu().numpy())
+            in_scores.append((module_name, score.sum(axis=1).detach().cpu().numpy()))
+            out_scores.append((module_name, score.sum(axis=0).detach().cpu().numpy()))
 
     elif hasattr(model, 'reformer'):
         params = []
@@ -122,10 +122,10 @@ def unit_score_sum(model, scores):
                 in_scores.append(in_score)
                 out_scores.append(out_score)
 
-    in_scores = np.concatenate(in_scores[:-1])
-    out_scores = np.concatenate(out_scores[1:])
-    # in_scores = np.concatenate(in_scores)
-    # out_scores = np.concatenate(out_scores)
+    if concatenate_scores:
+        in_scores = np.concatenate(in_scores[:-1][1])
+        out_scores = np.concatenate(out_scores[1:][1])
+
     return in_scores, out_scores
 
 ## Compute Average Layer Score ##

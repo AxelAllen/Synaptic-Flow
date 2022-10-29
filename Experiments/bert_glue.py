@@ -116,7 +116,7 @@ def run(args):
                 config=vars(args)
             )
         is_regression = task_name == "stsb"
-
+        '''
         config = AutoConfig.from_pretrained(
             "google/reformer-crime-and-punishment", 
             num_labels=label_dict["num_labels"],
@@ -144,7 +144,7 @@ def run(args):
             "bert-base-uncased",
             config=config
         )
-        '''
+
         sentence1_key, sentence2_key = task_to_keys[task_name]
         padding = "max_length"
 
@@ -209,12 +209,12 @@ def run(args):
                                 collate_fn=default_data_collator,
                                 batch_size=args.train_batch_size,
                                 pin_memory=True)
-        #loss_func = nn.CrossEntropyLoss()
+        loss_func = nn.CrossEntropyLoss()
         sparsity = 10 ** (-float(args.compression))
         prune_results, unit_scores, avg_layer_scores = prune_loop(model=model,
                                   prune_class=args.pruner,
                                   dataloader=dataloader,
-                                  loss=None,
+                                  loss=loss_func,
                                   device=device,
                                   epochs=args.prune_epochs,
                                   schedule=args.compression_schedule,
