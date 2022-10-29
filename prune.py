@@ -18,6 +18,7 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
     # Set model to train or eval mode
     model.to(device)
     model.train()
+    loss.to(device)
     # if not train_mode:
     #     model.eval()
     all_summary_results = {}
