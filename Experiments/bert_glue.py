@@ -37,6 +37,8 @@ def run(args):
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
     device = load.device(args.gpu)
+    print(f"available devices: {torch.cuda.device_count()}")
+    print(f"device: {device}")
 
 
     ## Data ##
@@ -209,7 +211,7 @@ def run(args):
                                 collate_fn=default_data_collator,
                                 batch_size=args.train_batch_size,
                                 pin_memory=True)
-        loss_func = nn.CrossEntropyLoss()
+        loss_func = nn.CrossEntropyLoss().cuda() if torch.cuda.is_available() else nn.CrossEntropyLoss()
         sparsity = 10 ** (-float(args.compression))
         prune_results, unit_scores, avg_layer_scores = prune_loop(model=model,
                                   prune_class=args.pruner,

@@ -408,12 +408,13 @@ class GraSP(Pruner):
 
             input = input.to(device)
             attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
 
             output = model(input_ids=input,
                            attention_mask=attn_mask)
 
             logits = output.logits / self.temp
-
+            
             L = loss(logits, labels)
 
             grads = torch.autograd.grad(L, [param.weight for (param, _) in parameters_to_prune],
@@ -430,6 +431,7 @@ class GraSP(Pruner):
 
             input = input.to(device)
             attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
 
             output = model(input_ids=input,
                            attention_mask=attn_mask)
