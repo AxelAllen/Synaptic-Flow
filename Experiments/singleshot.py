@@ -1,3 +1,6 @@
+import os
+import pickle
+
 import numpy as np
 import pandas as pd
 import torch
@@ -65,25 +68,38 @@ def run(args):
 
     ## Pre-Train ##
     generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
-    print('Pre-Train for {} epochs.'.format(args.pre_epochs))
-    pre_result = pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
-                                 test_loader, device, args.pre_epochs, args.verbose, use_wandb=args.wandb)
-    if args.wandb:
-        pre_result_logs = wandb.Table(dataframe=pre_result)
-        wandb.log({"pre_result": pre_result_logs})
+    #print('Pre-Train for {} epochs.'.format(args.pre_epochs))
+    #pre_result = pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+    #                             test_loader, device, args.pre_epochs, args.verbose, use_wandb=args.wandb)
+    #if args.wandb:
+    #    pre_result_logs = wandb.Table(dataframe=pre_result)
+    #    wandb.log({"pre_result": pre_result_logs})
 
     ## Prune ##
     generator.count_prunable_parameters(model)
-    print('Pruning for {} epochs.'.format(args.prune_epochs))
+    #print('Pruning for {} epochs.'.format(args.prune_epochs))
     sparsity = 10 ** (-float(args.compression))
-    prune_result = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
-               args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert, use_wandb=args.wandb)
-    if args.wandb:
-        prune_result_logs = wandb.Table(dataframe=prune_result)
-        wandb.log({"prune_result": prune_result_logs})
+    #summary, unit_scores, layer_scores = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,
+    #           args.compression_schedule, args.mask_scope, args.prune_epochs, args.reinitialize, args.prune_train_mode, args.shuffle, args.invert, use_wandb=args.wandb)
 
+    pruner = load.pruner(args.pruner)(sparsity)
+    importance_scores = pruner.score(model, prune_loader, loss, device, prune_bias=False)
+    in_scores, out_scores = unit_score_sum(model, importance_scores)
+    unit_scores = (in_scores, out_scores)
 
-    generator.initialize_weights(model, "classifier")
+    try:
+        os.makedirs(args.result_dir)
+    except FileExistsError:
+        print("Overwriting results for Experiment '{}' with expid '{}'".format(args.experiment, args.expid))
+
+    #with open(f"{args.result_dir}/prune-results.pickle", "wb") as w:
+    #    pickle.dump(summary, w, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(f"{args.result_dir}/unit-scores.pickle", "wb") as w:
+        pickle.dump(unit_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
+    #with open(f"{args.result_dir}/layerwise-scores.pickle", "wb") as w:
+    #    pickle.dump(layer_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
+
+    #generator.initialize_weights(model, "classifier")
     ## Re-define optimizer to update whole model ##
     '''
     if args.sam:
@@ -98,34 +114,35 @@ def run(args):
     '''
 
     ## Post-Train ##
-    generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
-    print('Post-Training for {} epochs.'.format(args.post_epochs))
-    post_result = post_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
-                                  test_loader, device, args.post_epochs, args.verbose, use_wandb=args.wandb)
-    if args.wandb:
-        post_result_logs = wandb.Table(dataframe=post_result)
-        wandb.log({"post_result": post_result_logs})
+    #generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
+    #print('Post-Training for {} epochs.'.format(args.post_epochs))
+    #post_result = post_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
+    #                             test_loader, device, args.post_epochs, args.verbose, use_wandb=args.wandb)
+    #if args.wandb:
+    #    post_result_logs = wandb.Table(dataframe=post_result)
+    #    wandb.log({"post_result": post_result_logs})
 
     ## Count Flops ##
     # (data, _) = next(iter(train_loader))
     # ops, all_data = count_ops(model, data)
 
     ## Display Results ##
-    frames = [pre_result.head(1), pre_result.tail(1), post_result.head(1), post_result.tail(1)]
-    train_result = pd.concat(frames, keys=['Init.', 'Pre-Prune', 'Post-Prune', 'Final'])
+    #frames = [pre_result.head(1), pre_result.tail(1), post_result.head(1), post_result.tail(1)]
+    #train_result = pd.concat(frames, keys=['Init.', 'Pre-Prune', 'Post-Prune', 'Final'])
 
     # total_params = int((prune_result['sparsity'] * prune_result['size']).sum())
     # possible_params = prune_result['size'].sum()
     # total_flops = int((prune_result['sparsity'] * prune_result['flops']).sum())
     # possible_flops = prune_result['flops'].sum()
-    glob_sparsity = global_sparsity(model, args.prune_bias)
-    print("Train results:\n", train_result)
-    print("Prune results:\n", prune_result)
-    print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
+    #glob_sparsity = global_sparsity(model, args.prune_bias)
+    #print("Train results:\n", train_result)
+    #print("Prune results:\n", prune_result)
+    #print(f"Parameter Sparsity: {round(100 * glob_sparsity, 2)}%")
     # print("Parameter Sparsity: {}/{} ({:.4f})".format(total_params, possible_params, total_params / possible_params))
     # print("FLOP Sparsity: {}/{} ({:.4f})".format(total_flops, possible_flops, total_flops / possible_flops))
 
     ## Save Results and Model ##
+    '''
     if args.save:
         print('Saving results.')
         pre_result.to_pickle("{}/pre-train.pkl".format(args.result_dir))
@@ -134,6 +151,7 @@ def run(args):
         torch.save(model.state_dict(),"{}/model.pt".format(args.result_dir))
         torch.save(optimizer.state_dict(),"{}/optimizer.pt".format(args.result_dir))
         torch.save(scheduler.state_dict(),"{}/scheduler.pt".format(args.result_dir))
+    '''
     if args.wandb:
         wandb.finish()
 

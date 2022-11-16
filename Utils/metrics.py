@@ -57,7 +57,7 @@ def summary(model, scores):
     return pd.DataFrame(rows, columns=columns)
 
 ## Compute per Neuron Score ##
-def unit_score_sum(model, scores, concatenate_scores=False, layers=1):
+def unit_score_sum(model, scores, concatenate_scores=False, layers=1, prune_bias=False):
     in_scores = []
     out_scores = []
     if hasattr(model, 'bert'):
@@ -98,29 +98,17 @@ def unit_score_sum(model, scores, concatenate_scores=False, layers=1):
             in_scores.append(score.sum(axis=1).detach().cpu().numpy())
             out_scores.append(score.sum(axis=0).detach().cpu().numpy())
     else:
-        for name, module in model.named_modules():
-            if isinstance(module, nn.Linear):
-                W = module.weight
-                b = module.bias
-
-                W_score = scores[id(W)].detach().cpu().numpy()
-                b_score = scores[id(b)].detach().cpu().numpy()
-
-                in_scores.append(W_score.sum(axis=1) + b_score)
-                out_scores.append(W_score.sum(axis=0))
-            if isinstance(module, nn.Conv2d):
-                W = module.weight
-                W_score = scores[id(W)].detach().cpu().numpy()
-                in_score = W_score.sum(axis=(1, 2, 3))
-                out_score = W_score.sum(axis=(0, 2, 3))
-
-                if module.bias is not None:
-                    b = module.bias
-                    b_score = scores[id(b)].detach().cpu().numpy()
-                    in_score += b_score
-
-                in_scores.append(in_score)
-                out_scores.append(out_score)
+        for module in filter(lambda p: prunable(p), model.modules()):
+            for pname, param in module.named_parameters(recurse=False):
+                if pname == "bias" and prune_bias is False:
+                    continue
+                score = scores[(module, pname)]
+                if isinstance(module, nn.Linear):
+                    in_scores.append(score.sum(axis=1).detach().cpu().numpy())
+                    out_scores.append(score.sum(axis=0).detach().cpu().numpy())
+                if isinstance(module, nn.Conv2d):
+                    in_scores.append(score.sum(axis=(1, 2, 3)).detach().cpu().numpy())
+                    out_scores.append(score.sum(axis=(0, 2, 3)).detach().cpu().numpy())
 
     if concatenate_scores:
         in_scores = np.concatenate(in_scores[:-1][1])

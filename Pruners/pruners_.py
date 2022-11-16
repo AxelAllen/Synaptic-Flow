@@ -317,7 +317,7 @@ class SNIP(Pruner):
 
         # compute gradient
         for batch_idx, batch in enumerate(dataloader):
-        #batch = next(iter(dataloader))
+            #batch = next(iter(dataloader))
             input = batch["input_ids"]
             attn_mask = batch["attention_mask"]
             labels = batch["labels"]
@@ -408,6 +408,7 @@ class GraSP(Pruner):
 
             input = input.to(device)
             attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
 
             output = model(input_ids=input,
                            attention_mask=attn_mask)

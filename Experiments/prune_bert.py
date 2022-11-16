@@ -1,8 +1,6 @@
 import os
-import pickle
-import random
-import numpy as np
 import torch
+import pickle
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from Utils import load
@@ -17,22 +15,13 @@ from transformers import (
     ReformerTokenizer,
     ReformerConfig,
     PretrainedConfig,
-    default_data_collator,
-    Trainer,
-    TrainingArguments,
-    EvalPrediction
+    default_data_collator
 )
-from transformers.trainer_utils import get_last_checkpoint
 from datasets import load_dataset, load_metric
-import wandb
 from prune import prune_loop
-#from train_glue import pre_train_eval_loop_glue, post_train_eval_loop_glue
 
 
 def run(args):
-
-    if args.wandb:
-        wandb.login()
 
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
@@ -76,21 +65,6 @@ def run(args):
         "wnli": ("sentence1", "sentence2"),
     }
 
-    ## max length ##
-    '''
-    max_lengths = {}
-    columns = ["sentence", "premise", "hypothesis", "sentence1", "sentence2", "question", "question1", "question2"]
-    for name, dataset_dict in glue.items():
-        max_length = 0
-        for _, dataset_split in dataset_dict.items():
-            for col in columns:
-                if col in dataset_split.features:
-                    for sentence in dataset_split[col]:
-                        sent_len = len(sentence)
-                        if sent_len > max_length:
-                            max_length = sent_len
-        max_lengths.update({name: max_length})
-    '''
     ## labels ##
     labels = {}
     for name, dataset in glue.items():
@@ -108,13 +82,6 @@ def run(args):
     ## Models ##
     models = {}
     for (task_name, label_dict), (_, dataset) in zip(labels.items(), glue.items()):
-        if args.wandb:
-            wandb.init(
-                project=f"{args.projectid}",
-                name=f"{task_name}_{args.expid}",
-                group=f"{args.groupid}",
-                config=vars(args)
-            )
         is_regression = task_name == "stsb"
         '''
         config = AutoConfig.from_pretrained(
@@ -219,11 +186,14 @@ def run(args):
                                   epochs=args.prune_epochs,
                                   schedule=args.compression_schedule,
                                   scope=args.mask_scope,
-                                  sparsity=sparsity, #args.compression
-                                  use_wandb=args.wandb)
+                                  sparsity=sparsity)
         #prune_results.update({task_name: prune_result})
 
+
+
         result_dir = os.path.join(args.result_dir, f"{task_name}")
+        ckpt_dir = os.path.join(args.result_dir, "checkpoints")
+        model.save_pretrained(save_directory=os.path.join(ckpt_dir, f"{task_name}"))
 
         try:
             os.makedirs(result_dir)
@@ -236,84 +206,3 @@ def run(args):
             pickle.dump(unit_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
         with open(f"{result_dir}/layerwise-scores.pickle", "wb") as w:
             pickle.dump(avg_layer_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
-
-        '''
-        with open(f"{result_dir}/importance-scores.pickle", "wb") as w:
-            pickle.dump(importance_scores, w, protocol=pickle.HIGHEST_PROTOCOL)
-
-        
-        for index in random.sample(range(len(train_dataset)), 3):
-            print(f"Sample {index} of the training set: {train_dataset[index]}.")
-        '''
-        if args.pre_epochs > 0:
-            def compute_metrics(p: EvalPrediction):
-                preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
-                preds = np.squeeze(preds) if is_regression else np.argmax(preds, axis=1)
-                result = metric.compute(predictions=preds, references=p.label_ids)
-                if len(result) > 1:
-                    result["combined_score"] = np.mean(list(result.values())).item()
-                return result
-
-
-            report_to = ["wandb"] if args.wandb else "none"
-            training_args = TrainingArguments(
-                output_dir=f"Results/bert/glue/{task_name}",
-                overwrite_output_dir=True,
-                do_train=True,
-                do_eval=True,
-                do_predict=False,
-                evaluation_strategy="epoch",
-                save_strategy="no",
-                per_device_train_batch_size=args.train_batch_size,
-                per_device_eval_batch_size=args.test_batch_size,
-                learning_rate=args.lr,
-                weight_decay=args.weight_decay,
-                num_train_epochs=args.pre_epochs,
-                lr_scheduler_type=args.lr_scheduler_type,
-                report_to=report_to
-                #load_best_model_at_end=True,
-                #metric_for_best_model=None,
-                #greater_is_better=None,
-                #resume_from_checkpoint=None,
-                #run_name=None
-            )
-            trainer = Trainer(model=model,
-                              args=training_args,
-                              data_collator=default_data_collator,
-                              train_dataset=train_dataset,
-                              eval_dataset=eval_dataset,
-                              tokenizer=tokenizer,
-                              compute_metrics=compute_metrics)
-            print("*** Train ***")
-            train_result = trainer.train()
-            metrics = train_result.metrics
-            metrics["train_samples"] = len(train_dataset)
-
-            train_results.update({task_name: train_result})
-
-            print("*** Evaluate ***")
-            tasks = [task_name]
-            eval_datasets = [eval_dataset]
-            combined = {}
-            if task_name == "mnli":
-                tasks.append("mnli-mm")
-                eval_datasets.append(datasets["validation_mismatched"])
-            for eval_data, task in zip(eval_datasets, tasks):
-                metrics = trainer.evaluate(eval_dataset=eval_data)
-                metrics["eval_samples"] = len(eval_data)
-
-                if "mnli" in task:
-                    if task == "mnli-mm":
-                        metrics = {k + "_mm": v for k, v in metrics.items()}
-                    combined.update(metrics)
-                    eval_results.update({task_name: combined})
-                else:
-                    eval_results.update({task_name: metrics})
-            if args.wandb:
-                wandb.finish()
-
-        with open(f"{args.result_dir}/train-results.pickle", "wb") as w:
-            pickle.dump(train_results, w, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f"{args.result_dir}/eval-results.pickle", "wb") as w:
-            pickle.dump(eval_results, w, protocol=pickle.HIGHEST_PROTOCOL)
-
