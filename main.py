@@ -4,6 +4,7 @@ import os
 from Experiments import singleshot
 from Experiments import multishot
 from Experiments import bert_glue as glue
+from Experiments import prune_bert
 from Experiments.theory import unit_conservation
 from Experiments.theory import layer_conservation
 from Experiments.theory import imp_conservation
@@ -110,7 +111,7 @@ if __name__ == '__main__':
                         help='list of number of prune-train cycles (levels) for multishot (default: [])')
     ## Experiment Hyperparameters ##
     parser.add_argument('--experiment', type=str, default='singleshot', 
-                        choices=['glue', 'singleshot','multishot','unit-conservation',
+                        choices=['glue', 'prune_bert', 'singleshot','multishot','unit-conservation',
                         'layer-conservation','imp-conservation','schedule-conservation'],
                         help='experiment name (default: example)')
     parser.add_argument('--expid', type=str, default='',
@@ -163,6 +164,8 @@ if __name__ == '__main__':
     ## Run Experiment ##
     if args.experiment == 'glue':
         glue.run(args)
+    if args.experiment == 'prune_bert':
+        prune_bert.run(args)
     if args.experiment == 'singleshot':
         singleshot.run(args)
     if args.experiment == 'multishot':
