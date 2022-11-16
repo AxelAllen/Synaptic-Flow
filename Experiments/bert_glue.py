@@ -37,6 +37,8 @@ def run(args):
     ## Random Seed and Device ##
     torch.manual_seed(args.seed)
     device = load.device(args.gpu)
+    print(f"available devices: {torch.cuda.device_count()}")
+    print(f"device: {device}")
 
 
     ## Data ##
