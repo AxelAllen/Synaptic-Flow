@@ -417,7 +417,7 @@ class GraSP(Pruner):
             
             L = loss(logits, labels)
 
-            grads = torch.autograd.grad(L, [param.weight for (param, _) in parameters_to_prune],
+            grads = torch.autograd.grad(L, [param.weight for (name, param) in model.named_parameters(recurse=False)],
                                         create_graph=False)
             flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
             stopped_grads += flatten_grads
@@ -440,7 +440,7 @@ class GraSP(Pruner):
 
             L = loss(logits, labels)
 
-            grads = torch.autograd.grad(L, [param.weight for (param, _) in parameters_to_prune],
+            grads = torch.autograd.grad(L, [param.weight for (name, param) in model.named_parameters(recurse=False)],
                                         create_graph=True)
             flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
 
@@ -454,7 +454,12 @@ class GraSP(Pruner):
                 continue
             score = torch.clone(param.grad * param.data).detach()
             scores.update({(module, pname): score})
-            param.grad.data.zero_()
+
+        for name, param in model.named_parameters(recurse=False):
+            param.weight.grad.data.zero_()
+            if name == 'bias':
+                if hasattr(param.bias, 'grad'):
+                    param.bias.grad.data.zero()
 
         # normalize score
         all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
