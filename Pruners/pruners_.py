@@ -400,54 +400,52 @@ class GraSP(Pruner):
 
         # first gradient vector without computational graph
         stopped_grads = 0
-        #for batch_idx, batch in enumerate(dataloader):
-        batch = next(iter(dataloader))
-        input = batch["input_ids"]
-        attn_mask = batch["attention_mask"]
-        labels = batch["labels"]
+        for batch_idx, batch in enumerate(dataloader):
+            #batch = next(iter(dataloader))
+            input = batch["input_ids"]
+            attn_mask = batch["attention_mask"]
+            labels = batch["labels"]
 
-        input = input.to(device)
-        attn_mask = attn_mask.to(device)
-        labels = labels.to(device)
+            input = input.to(device)
+            attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
 
-        output = model(input_ids=input,
-                       attention_mask=attn_mask)
+            output = model(input_ids=input,
+                           attention_mask=attn_mask)
 
-        logits = output.logits / self.temp
+            logits = output.logits / self.temp
 
-        L = loss(logits, labels)
-
-
-        params = list(model.parameters(recurse=False))
-        grads = torch.autograd.grad(L, [param for (name, param) in list(model.named_parameters())],
-                                    create_graph=False)
-        flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
-        stopped_grads += flatten_grads
+            L = loss(logits, labels)
+    
+            grads = torch.autograd.grad(L, [param for (name, param) in list(model.named_parameters())],
+                                        create_graph=False)
+            flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
+            stopped_grads += flatten_grads
 
         # second gradient vector with computational graph
-        #for batch_idx, batch in enumerate(dataloader):
-        batch = next(iter(dataloader))
-        input = batch["input_ids"]
-        attn_mask = batch["attention_mask"]
-        labels = batch["labels"]
+        for batch_idx, batch in enumerate(dataloader):
+            #batch = next(iter(dataloader))
+            input = batch["input_ids"]
+            attn_mask = batch["attention_mask"]
+            labels = batch["labels"]
 
-        input = input.to(device)
-        attn_mask = attn_mask.to(device)
-        labels = labels.to(device)
+            input = input.to(device)
+            attn_mask = attn_mask.to(device)
+            labels = labels.to(device)
 
-        output = model(input_ids=input,
-                       attention_mask=attn_mask)
+            output = model(input_ids=input,
+                           attention_mask=attn_mask)
 
-        logits = output.logits / self.temp
+            logits = output.logits / self.temp
 
-        L = loss(logits, labels)
+            L = loss(logits, labels)
 
-        grads = torch.autograd.grad(L, [param for (name, param) in list(model.named_parameters())],
-                                    create_graph=True)
-        flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
+            grads = torch.autograd.grad(L, [param for (name, param) in list(model.named_parameters())],
+                                        create_graph=True)
+            flatten_grads = torch.cat([g.reshape(-1) for g in grads if g is not None])
 
-        gnorm = (stopped_grads * flatten_grads).sum()
-        gnorm.backward()
+            gnorm = (stopped_grads * flatten_grads).sum()
+            gnorm.backward()
 
         # calculate score Hg * theta (negate to remove top percent)
         for module, pname in parameters_to_prune:
@@ -463,7 +461,5 @@ class GraSP(Pruner):
         all_scores = torch.cat([torch.flatten(v) for v in scores.values()])
         norm = torch.abs(torch.sum(all_scores)) + self.eps
         for module, pname in parameters_to_prune:
-            if pname == "bias" and prune_bias is False:
-                continue
             scores[(module, pname)] = scores[(module, pname)].div_(norm)
         return scores
