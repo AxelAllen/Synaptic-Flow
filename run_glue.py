@@ -200,7 +200,7 @@ def main():
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     wandb.init(
-        project="bert_glue",
+        project="test_grasp",
         name=f"{data_args.task_name}"
     )
     # Setup logging
