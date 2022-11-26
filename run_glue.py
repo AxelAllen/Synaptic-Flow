@@ -199,6 +199,10 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # modify default training arguments
+    training_args.evaluation_strategy = 'epoch'
+    training_args.save_strategy = 'no'
+
     wandb.init(
         project="test_grasp",
         name=f"{data_args.task_name}"
