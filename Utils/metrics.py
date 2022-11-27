@@ -80,7 +80,7 @@ def unit_score_sum(model, scores, concatenate_scores=False, layers=1, prune_bias
     elif hasattr(model, 'reformer'):
         params = []
         for ii in range(6):
-            '''
+
             if ii % 2 == 0:
                 params.append((model.reformer.encoder.layers[ii].attention.self_attention.query, "weight"))
                 params.append((model.reformer.encoder.layers[ii].attention.self_attention.key, "weight"))
@@ -88,7 +88,7 @@ def unit_score_sum(model, scores, concatenate_scores=False, layers=1, prune_bias
             else:
                 params.append((model.reformer.encoder.layers[ii].attention.self_attention.query_key, "weight"))
                 params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
-            '''
+
             params.append((model.reformer.encoder.layers[ii].attention.self_attention.value, "weight"))
             params.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
             params.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))

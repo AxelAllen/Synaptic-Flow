@@ -22,13 +22,14 @@ if __name__ == '__main__':
                                help='list of GLUE datasets to use, default [] uses all datasets')
     training_args.add_argument('--dataset-length', type=int, default=None,
                                help='create a subset of dataset of specified length')
-    training_args.add_argument('--model', type=str, default='ViT-Ti', choices=['fc','conv',
+    training_args.add_argument('--model', type=str, default='Bert', choices=['fc','conv',
                         'vgg11','vgg11-bn','vgg13','vgg13-bn','vgg16','vgg16-bn','vgg19','vgg19-bn',
                         'resnet18','resnet20','resnet32','resnet34','resnet44','resnet50',
                         'resnet56','resnet101','resnet110','resnet110','resnet152','resnet1202',
                         'wide-resnet18','wide-resnet20','wide-resnet32','wide-resnet34','wide-resnet44','wide-resnet50',
-                        'wide-resnet56','wide-resnet101','wide-resnet110','wide-resnet110','wide-resnet152',
-                        'wide-resnet1202', 'ViT-Ti', 'ViT-S_32', 'ViT-S_16', 'ViT-S_14', 'ViT-S_8', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16'],
+                        'wide-resnet56','wide-resnet101','wide-resnet110','wide-resnet110','wide-resnet152', 'wide-resnet1202',
+                        'ViT-Ti', 'ViT-S_32', 'ViT-S_16', 'ViT-S_14', 'ViT-S_8', 'ViT-B_16', 'ViT-B_32', 'ViT-L_16', 'ViT-L_32', 'R50+ViT-B_16',
+                        'Bert',  'Reformer'],
                         help='model architecture (default: fc)')
     training_args.add_argument('--model-class', type=str, default='transformer', choices=['default','lottery','tinyimagenet','imagenet', 'transformer'],
                         help='model class (default: default)')

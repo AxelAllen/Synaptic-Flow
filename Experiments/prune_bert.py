@@ -83,34 +83,49 @@ def run(args):
     models = {}
     for (task_name, label_dict), (_, dataset) in zip(labels.items(), glue.items()):
         is_regression = task_name == "stsb"
-        '''
-        config = AutoConfig.from_pretrained(
-            "google/reformer-crime-and-punishment", 
-            num_labels=label_dict["num_labels"],
-            finetuning_task=task_name,
-            axial_pos_embds=False
-        )
-        tokenizer = AutoTokenizer.from_pretrained(
-            "google/reformer-crime-and-punishment" 
-        )
-        tokenizer.pad_token = tokenizer.eos_token
-        model = AutoModelForSequenceClassification.from_pretrained(
-            "google/reformer-crime-and-punishment",
-            config=config
-        )
-        '''
-        config = AutoConfig.from_pretrained(
-            "bert-base-uncased",
-            num_labels=label_dict["num_labels"],
-            finetuning_task=task_name
-        )
-        tokenizer = AutoTokenizer.from_pretrained(
-            "bert-base-uncased"
-        )
-        model = AutoModelForSequenceClassification.from_pretrained(
-            "bert-base-uncased",
-            config=config
-        )
+
+        if args.model == "Bert":
+            config = AutoConfig.from_pretrained(
+                "bert-base-uncased",
+                num_labels=label_dict["num_labels"],
+                finetuning_task=task_name
+            )
+            tokenizer = AutoTokenizer.from_pretrained(
+                "bert-base-uncased"
+            )
+            model = AutoModelForSequenceClassification.from_pretrained(
+                "bert-base-uncased",
+                config=config
+            )
+        elif args.model == "Reformer":
+            config = AutoConfig.from_pretrained(
+                "google/reformer-crime-and-punishment",
+                num_labels=label_dict["num_labels"],
+                finetuning_task=task_name,
+                axial_pos_embds=False
+            )
+            tokenizer = AutoTokenizer.from_pretrained(
+                "google/reformer-crime-and-punishment"
+            )
+            tokenizer.pad_token = tokenizer.eos_token
+            model = AutoModelForSequenceClassification.from_pretrained(
+                "google/reformer-crime-and-punishment",
+                config=config
+            )
+        else:
+            print("Invalid model name: initializing Bert-Base-Uncased instead.")
+            config = AutoConfig.from_pretrained(
+                "bert-base-uncased",
+                num_labels=label_dict["num_labels"],
+                finetuning_task=task_name
+            )
+            tokenizer = AutoTokenizer.from_pretrained(
+                "bert-base-uncased"
+            )
+            model = AutoModelForSequenceClassification.from_pretrained(
+                "bert-base-uncased",
+                config=config
+            )
 
         sentence1_key, sentence2_key = task_to_keys[task_name]
         padding = "max_length"
