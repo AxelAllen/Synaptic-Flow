@@ -67,7 +67,7 @@ def run(args):
 
 
     ## Pre-Train ##
-    generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
+    #generator.count_trainable_parameters(model, args.freeze_parameters, args.freeze_classifier)
     #print('Pre-Train for {} epochs.'.format(args.pre_epochs))
     #pre_result = pre_train_eval_loop(model, loss, optimizer, scheduler, train_loader,
     #                             test_loader, device, args.pre_epochs, args.verbose, use_wandb=args.wandb)
@@ -76,7 +76,7 @@ def run(args):
     #    wandb.log({"pre_result": pre_result_logs})
 
     ## Prune ##
-    generator.count_prunable_parameters(model)
+    #generator.count_prunable_parameters(model)
     #print('Pruning for {} epochs.'.format(args.prune_epochs))
     sparsity = 10 ** (-float(args.compression))
     #summary, unit_scores, layer_scores = prune_loop(model, args.pruner, prune_loader, loss, device, sparsity,

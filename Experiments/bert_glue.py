@@ -288,6 +288,7 @@ def run(args):
                 weight_decay=args.weight_decay,
                 num_train_epochs=args.pre_epochs,
                 lr_scheduler_type=args.lr_scheduler_type,
+                seed=args.seed,
                 report_to=report_to
                 #load_best_model_at_end=True,
                 #metric_for_best_model=None,

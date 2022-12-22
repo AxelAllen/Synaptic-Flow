@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torchvision import datasets, transforms
 import torch.optim as optim
+from Models import simpleNet
 from Models import mlp
 from Models import lottery_vgg
 from Models import lottery_resnet
@@ -116,6 +117,7 @@ def model(model_architecture, model_class):
     default_models = {
         'fc' : mlp.fc,
         'conv' : mlp.conv,
+        'simpleNet' : simpleNet.simpleNet
     }
     lottery_models = {
         'vgg11' : lottery_vgg.vgg11,

@@ -200,6 +200,7 @@ def main():
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # modify default training arguments
+    training_args.do_eval = True
     training_args.evaluation_strategy = 'epoch'
     training_args.save_strategy = 'no'
 
@@ -525,11 +526,11 @@ def main():
         )
         metrics["train_samples"] = min(max_train_samples, len(train_dataset))
 
-        trainer.save_model()  # Saves the tokenizer too for easy upload
+        #trainer.save_model()  # Saves the tokenizer too for easy upload
 
         #trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
-        trainer.save_state()
+        #trainer.save_metrics("train", metrics)
+        #rainer.save_state()
 
     # Evaluation
     if training_args.do_eval:
@@ -557,7 +558,7 @@ def main():
                 combined.update(metrics)
 
             #trainer.log_metrics("eval", metrics)
-            trainer.save_metrics("eval", combined if task is not None and "mnli" in task else metrics)
+            #trainer.save_metrics("eval", combined if task is not None and "mnli" in task else metrics)
 
     if training_args.do_predict:
         print("*** Predict ***")
