@@ -39,7 +39,7 @@ def summary(model, scores):
                 sparsity = 1 - (zero_params / total_params)
                 score = scores[(module, pname)].detach().cpu().numpy()
             else:
-                sparsity = 0.0
+                sparsity = 1.0
                 score = np.zeros(1)
             shape = param.detach().cpu().numpy().shape
             score_mean = score.mean()

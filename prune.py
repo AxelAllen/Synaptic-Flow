@@ -91,9 +91,9 @@ def prune_loop(model, prune_class, dataloader, loss, device, sparsity, schedule,
                 if hasattr(module, "bias") and prune_bias is True:
                     prune_.remove(module, "bias")
 
-
         summary_results = summary(model, importance_scores)
         all_summary_results.update({epoch: summary_results})
+
 
         # Reainitialize weights
         if reinitialize:
