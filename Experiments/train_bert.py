@@ -216,7 +216,7 @@ def run(args):
         # test_dataset = datasets["test_matched" if task_name == "mnli" else "test"]
         metric = load_metric("glue", task_name)
 
-        
+
         if args.pre_epochs > 0:
             def compute_metrics(p: EvalPrediction):
                 preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
