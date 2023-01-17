@@ -263,8 +263,16 @@ class Magnitude(Pruner):
 def snip_forward_linear(self, x):
     return F.linear(x, self.weight * self.weight_mask, self.bias)
 
+def snip_forward_conv2d(self, x):
+    return F.conv2d(x, self.weight * self.weight_mask, self.bias,
+                    self.stride, self.padding, self.dilation, self.groups)
+
 def forward_linear(self, x):
     return F.linear(x, self.weight, self.bias)
+
+def forward_conv2d(self, x):
+    return F.conv2d(x, self.weight, self.bias,
+                    self.stride, self.padding, self.dilation, self.groups)
 
 # Based on https://github.com/mi-lad/snip/blob/master/snip.py#L18
 class SNIP(Pruner):
@@ -317,6 +325,9 @@ class SNIP(Pruner):
                 #module.weight.requires_grad = False
             if isinstance(module, nn.Linear):
                 module.forward = types.MethodType(snip_forward_linear, module)
+            if isinstance(module, nn.Conv2d):
+                module.forward = types.MethodType(snip_forward_conv2d, module)
+
         if hasattr(model, 'bert') or hasattr(model, 'reformer'):
             # compute gradient
             for batch_idx, batch in enumerate(dataloader):
@@ -363,6 +374,8 @@ class SNIP(Pruner):
                 delattr(module, 'weight_mask')
             if isinstance(module, nn.Linear):
                 module.forward = types.MethodType(forward_linear, module)
+            if isinstance(module, nn.Conv2d):
+                module.forward = types.MethodType(forward_conv2d, module)
 
         return scores
 
