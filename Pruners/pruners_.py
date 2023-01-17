@@ -305,6 +305,9 @@ class SNIP(Pruner):
                 parameters_to_prune.append((model.reformer.encoder.layers[ii].attention.output.dense, "weight"))
                 parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.dense.dense, "weight"))
                 parameters_to_prune.append((model.reformer.encoder.layers[ii].feed_forward.output.dense, "weight"))
+        else:
+            for module in filter(lambda p: prunable(p), model.modules()):
+                parameters_to_prune.append((module, "weight"))
 
         # allow masks to have gradient
         for module, pname in parameters_to_prune:
@@ -314,24 +317,29 @@ class SNIP(Pruner):
                 #module.weight.requires_grad = False
             if isinstance(module, nn.Linear):
                 module.forward = types.MethodType(snip_forward_linear, module)
+        if hasattr(model, 'bert') or hasattr(model, 'reformer'):
+            # compute gradient
+            for batch_idx, batch in enumerate(dataloader):
+                #batch = next(iter(dataloader))
+                input = batch["input_ids"]
+                attn_mask = batch["attention_mask"]
+                labels = batch["labels"]
 
-        # compute gradient
-        for batch_idx, batch in enumerate(dataloader):
-            #batch = next(iter(dataloader))
-            input = batch["input_ids"]
-            attn_mask = batch["attention_mask"]
-            labels = batch["labels"]
+                input = input.to(device)
+                attn_mask = attn_mask.to(device)
+                labels = labels.to(device)
 
-            input = input.to(device)
-            attn_mask = attn_mask.to(device)
-            labels = labels.to(device)
+                output = model(input_ids=input,
+                               attention_mask=attn_mask,
+                               labels=labels)
 
-            output = model(input_ids=input,
-                           attention_mask=attn_mask,
-                           labels=labels)
-
-            L = output.loss
-            L.backward()
+                L = output.loss
+                L.backward()
+        else:
+            for batch_idx, (data, target) in enumerate(dataloader):
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                loss(output, target).backward()
 
         # calculate score |g * theta|
         for module, pname in parameters_to_prune:

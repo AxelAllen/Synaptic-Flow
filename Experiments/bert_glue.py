@@ -59,11 +59,7 @@ def run(args):
         mnli = load_dataset('glue', 'mnli')
         qnli = load_dataset('glue', 'qnli')
         rte = load_dataset('glue', 'rte')
-        wnli = load_dataset('glue', 'wnli')
-        #ax = load_dataset('glue', 'ax')
-        glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte,
-               'wnli': wnli} #, 'ax': ax
-
+        glue = {'cola': cola, 'sst2': sst2, 'mrpc': mrpc, 'qqp': qqp, 'stsb': stsb, 'mnli': mnli, 'qnli': qnli, 'rte': rte}
 
     ## map task to keys ##
     task_to_keys = {
