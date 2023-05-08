@@ -1,3 +1,5 @@
+## Reference: https://pytorch.org/docs/stable/_modules/torch/nn/utils/prune.html ##
+
 r"""
 Pruning methods
 """
